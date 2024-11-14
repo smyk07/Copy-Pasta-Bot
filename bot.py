@@ -29,11 +29,11 @@ def retrieve_text(db:SqliteDict, user:str, key:str)->str:
 
 def add(db:SqliteDict, user:str, args:list, reply, overwrite:bool)->str:
 	if len(args) == 1:
-		return_text = constants.WRONG_ARGS
+		return_text = constants.WRONG_ARGS_ADD
 	
 	elif len(args) == 2:
 		if reply is None:
-			return_text = constants.WRONG_ARGS
+			return_text = constants.WRONG_ARGS_ADD
 		else:
 			original_message = reply.resolved.content or ''
 
@@ -84,6 +84,8 @@ def handle_command(db:SqliteDict, user:str, cmd:str, reply=None)->str:
 				return_text = '- ' + '\n- '.join(list(user_db.keys()))
 
 		case 'delete':
+			if len(args) == 1:
+				return_text = constants.WRONG_ARGS_DEL
 			user_db = db.get(user.id, None)
 			if user_db is None:
 				return_text = constants.DOES_NOT_EXIST
