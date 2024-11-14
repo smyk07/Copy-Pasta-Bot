@@ -86,13 +86,15 @@ def handle_command(db:SqliteDict, user:str, cmd:str, reply=None)->str:
 		case 'delete':
 			if len(args) == 1:
 				return_text = constants.WRONG_ARGS_DEL
-			user_db = db.get(user.id, None)
-			if user_db is None:
-				return_text = constants.DOES_NOT_EXIST
 			else:
-				del user_db[args[1]]
-				db[user.id] = user_db
-				return_text = constants.SUCCESSFUL
+				# Maybe allow deleting multiple keys at a time?
+				user_db = db.get(user.id, None)
+				if user_db is None:
+					return_text = constants.DOES_NOT_EXIST
+				else:
+					del user_db[args[1]]
+					db[user.id] = user_db
+					return_text = constants.SUCCESSFUL
 		
 		case 'help':
 			return_text = constants.HELP_TEXT
