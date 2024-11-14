@@ -48,6 +48,8 @@ def add(db:SqliteDict, user:str, args:list, reply, overwrite:bool)->str:
 	
 	else:
 		return_text = store_text(db, user.id, args[1], ''.join(args[2:]), overwrite=overwrite)
+	
+	return return_text
 
 def replace_text(db:SqliteDict, user:str, message:str)->str:
 	parts = message.split(';;')
