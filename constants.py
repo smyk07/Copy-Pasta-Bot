@@ -1,4 +1,4 @@
-DB_NAME 		= 'mysqlite.db'
+DB_NAME 		= './db/mysqlite.db'
 KEY_EXISTS 		= 'Could not add because this key already exists. Use `add_o` to overwrite.'
 SUCCESSFUL 		= 'Success!'
 UNSUCCESSFUL 	= 'Something went wrong :/'
