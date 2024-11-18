@@ -47,7 +47,7 @@ def add(db:SqliteDict, user:str, args:list, reply, overwrite:bool)->str:
 				return_text = constants.EMPTY_MESSAGE
 	
 	else:
-		return_text = store_text(db, user.id, args[1], ''.join(args[2:]), overwrite=overwrite)
+		return_text = store_text(db, user.id, args[1], ' '.join(args[2:]), overwrite=overwrite)
 	
 	return return_text
 

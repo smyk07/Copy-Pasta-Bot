@@ -19,5 +19,5 @@ Usage ;;key;;
 
 
 # REGEX
-COMMAND 		= r'^;;([a-zA-Z0-9_\-]|\ )+$' # commands preceded by ;
+COMMAND 		= r'^;;.' # commands preceded by ;;
 REPLACE 		= r'(^|\S+\s+);;[a-zA-Z0-9_\-]+;;(\s+\S+|$)' # ;;word;;
