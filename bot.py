@@ -38,8 +38,12 @@ def add(db:SqliteDict, user:str, args:list, reply, overwrite:bool)->str:
 			original_message = reply.resolved.content or ''
 
 			# Multiple attachments ???
-			if len(reply.resolved.attachments) > 0:
-				original_message += f'[Attachment]({reply.resolved.attachments[0].url})'
+			# if len(reply.resolved.attachments) > 0:
+			for i in range(len(reply.resolved.attachments)):
+				original_message += f'[Attachment {i}]({reply.resolved.attachments[i].url}) '
+
+			for i in reply.resolved.stickers:
+				original_message += f'[{i.name}]({i.url}) '
 
 			if original_message != '':
 				return_text = store_text(db, user.id, args[1], original_message, overwrite=overwrite)
