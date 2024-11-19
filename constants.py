@@ -20,4 +20,4 @@ Usage ;;key;;
 
 # REGEX
 COMMAND 		= r'^;;.' # commands preceded by ;;
-REPLACE 		= r'(^|\S+\s+);;[a-zA-Z0-9_\-]+;;(\s+\S+|$)' # ;;word;;
+REPLACE 		= r'(^|\S+\s+);;\S+;;(\s+\S+|$)' # ;;word;;
