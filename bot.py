@@ -35,7 +35,7 @@ def add(db:SqliteDict, user:str, args:list, reply, overwrite:bool)->str:
 		if reply is None:
 			return_text = constants.WRONG_ARGS_ADD
 		else:
-			original_message = reply.resolved.content or ''
+			original_message = reply.resolved.content.strip() or ''
 
 			# Multiple attachments ???
 			# if len(reply.resolved.attachments) > 0:
