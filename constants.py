@@ -13,6 +13,7 @@ Start command with `;;`
 - **help** : This message
 - **saved** : See all saved texts
 - **delete <key>** : Delete text associated with this key
+- **delete_me** : Delete all your keys (can't be undone)
 
 Usage ;;key;;
 '''

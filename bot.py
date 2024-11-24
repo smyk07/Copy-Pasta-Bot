@@ -3,6 +3,7 @@ import constants
 import re
 import discord
 from sqlitedict import SqliteDict
+from cmds import *
 
 RE_CMD = re.compile(constants.COMMAND)
 RE_REPLACE = re.compile(constants.REPLACE)
@@ -96,9 +97,12 @@ def handle_command(db:SqliteDict, user:str, cmd:str, reply=None)->str:
 				if user_db is None:
 					return_text = constants.DOES_NOT_EXIST
 				else:
-					del user_db[args[1]]
+					deleted = user_db.pop(args[1], None)
 					db[user.id] = user_db
-					return_text = constants.SUCCESSFUL
+					return_text = constants.SUCCESSFUL if deleted else constants.KEY_NOT_EXIST
+		
+		case 'delete_me':
+			return_text = constants.SUCCESSFUL if delete_me.delete_me(db, user.id) else constants.EMPTY_LIST
 		
 		case 'help':
 			return_text = constants.HELP_TEXT
