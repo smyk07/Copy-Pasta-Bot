@@ -95,11 +95,11 @@ def handle_command(db:SqliteDict, user:str, cmd:str, reply=None)->str:
 				# Maybe allow deleting multiple keys at a time?
 				user_db = db.get(user.id, None)
 				if user_db is None:
-					return_text = constants.DOES_NOT_EXIST
+					return_text = constants.EMPTY_LIST
 				else:
 					deleted = user_db.pop(args[1], None)
 					db[user.id] = user_db
-					return_text = constants.SUCCESSFUL if deleted else constants.KEY_NOT_EXIST
+					return_text = constants.SUCCESSFUL if deleted else constants.KEY_NOT_FOUND
 		
 		case 'delete_me':
 			return_text = constants.SUCCESSFUL if delete_me.delete_me(db, user.id) else constants.EMPTY_LIST

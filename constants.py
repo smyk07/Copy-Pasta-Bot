@@ -1,5 +1,6 @@
 DB_NAME 		= './db/mysqlite.db'
 KEY_EXISTS 		= 'Could not add because this key already exists. Use `add_o` to overwrite.'
+KEY_NOT_FOUND	= 'Key you specified does not exist.'
 SUCCESSFUL 		= 'Success!'
 UNSUCCESSFUL 	= 'Something went wrong :/'
 WRONG_ARGS_ADD	= '`add <key> <value>` or `add <key>` and reply to a message'
