@@ -17,7 +17,7 @@ def store_text(db:SqliteDict, user:str, key:str, value:str, overwrite=False)->st
 	val = user_db.get(key, None) # Apparently faster than `in` or `try...except`?
 	if val is not None:
 		if not overwrite:
-			return constants.KEY_EXISTS
+			return constants.KEY_EXISTS_ADD
 	
 	user_db[key] = value
 	db[user] = user_db
@@ -103,6 +103,34 @@ def handle_command(db:SqliteDict, user:str, cmd:str, reply=None)->str:
 		
 		case 'delete_me':
 			return_text = constants.SUCCESSFUL if delete_me.delete_me(db, user.id) else constants.EMPTY_LIST
+		
+		case 'rename':
+			match rename_key.rename_key(db, user.id, args[1], args[2]):
+				case 0:
+					return_text = constants.SUCCESSFUL
+				case -1:
+					return_text = constants.EMPTY_LIST
+				case -2:
+					return_text = constants.KEY_NOT_FOUND
+				case -3:
+					return_text = constants.KEY_EXISTS_RENAME
+				case _:
+					return_text = constants.UNSUCCESSFUL
+		
+		case 'rename_o':
+			match rename_key.rename_key(db, user.id, args[1], args[2]):
+				case 0:
+					return_text = constants.SUCCESSFUL
+				case -1:
+					return_text = constants.EMPTY_LIST
+				case -2:
+					return_text = constants.KEY_NOT_FOUND
+				case -3:
+					# Shouldn't occur
+					return_text = constants.KEY_EXISTS_RENAME
+				case _:
+					return_text = constants.UNSUCCESSFUL
+
 		
 		case 'help':
 			return_text = constants.HELP_TEXT

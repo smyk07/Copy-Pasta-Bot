@@ -3,3 +3,4 @@ mysqlite.db
 .venv/
 .git/
 __pycache__/
+./cmds/__pycache__/
