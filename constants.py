@@ -25,3 +25,6 @@ Usage ;;key;;
 # REGEX
 COMMAND 		= r'^;;.' # commands preceded by ;;
 REPLACE 		= r'(^|\S+\s+);;\S+;;(\s+\S+|$)' # ;;word;;
+
+# List of Blacklisted users
+BLACKLIST = []

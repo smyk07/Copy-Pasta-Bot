@@ -1,4 +1,4 @@
-import api_token
+import do_not_push
 import constants
 import re
 import discord
@@ -9,169 +9,221 @@ RE_CMD = re.compile(constants.COMMAND)
 RE_REPLACE = re.compile(constants.REPLACE)
 
 def initialize_db():
-	return SqliteDict(constants.DB_NAME, autocommit=True)
+    return SqliteDict(constants.DB_NAME, autocommit=True)
 
-def store_text(db:SqliteDict, user:str, key:str, value:str, overwrite=False)->str:
-	user_db = db.get(user, None) or {}
+def store_text(db: SqliteDict, user: str, key: str, value: str, overwrite=False) -> str:
+    user_db = db.get(user, None) or {}
 
-	val = user_db.get(key, None) # Apparently faster than `in` or `try...except`?
-	if val is not None:
-		if not overwrite:
-			return constants.KEY_EXISTS_ADD
-	
-	user_db[key] = value
-	db[user] = user_db
+    val = user_db.get(key, None)  # Apparently faster than `in` or `try...except`?
+    if val is not None:
+        if not overwrite:
+            return constants.KEY_EXISTS_ADD
 
-def retrieve_text(db:SqliteDict, user:str, key:str)->str:
-	user_db = db.get(user, None)
-	if user_db is not None:
-		return user_db.get(key, None)
-	return None
+    user_db[key] = value
+    db[user] = user_db
 
-def add(db:SqliteDict, user:str, args:list, reply, overwrite:bool)->str:
-	if len(args) == 1:
-		return_text = constants.WRONG_ARGS_ADD
-	
-	elif len(args) == 2:
-		if reply is None:
-			return_text = constants.WRONG_ARGS_ADD
-		else:
-			original_message = reply.resolved.content.strip() or ''
+def retrieve_text(db: SqliteDict, user: str, key: str) -> str:
+    user_db = db.get(user, None)
+    if user_db is not None:
+        return user_db.get(key, None)
+    return None
 
-			# Multiple attachments ???
-			# if len(reply.resolved.attachments) > 0:
-			for i in range(len(reply.resolved.attachments)):
-				original_message += f'[Attachment {i}]({reply.resolved.attachments[i].url}) '
+def add(db: SqliteDict, user: str, args: list, reply, overwrite: bool) -> str:
+    if len(args) == 1:
+        return_text = constants.WRONG_ARGS_ADD
+    
+    elif len(args) == 2:
+        if reply is None:
+            return_text = constants.WRONG_ARGS_ADD
+        else:
+            original_message = reply.resolved.content.strip() or ''
 
-			for i in reply.resolved.stickers:
-				original_message += f'[{i.name}]({i.url}) '
+            # Multiple attachments
+            for i in range(len(reply.resolved.attachments)):
+                original_message += f'[Attachment {i}]({reply.resolved.attachments[i].url}) '
 
-			if original_message != '':
-				return_text = store_text(db, user.id, args[1], original_message, overwrite=overwrite)
-			else:
-				return_text = constants.EMPTY_MESSAGE
-	
-	else:
-		return_text = store_text(db, user.id, args[1], ' '.join(args[2:]), overwrite=overwrite)
-	
-	return return_text
+            for i in reply.resolved.stickers:
+                original_message += f'[{i.name}]({i.url}) '
 
-def replace_text(db:SqliteDict, user:str, message:str)->str:
-	parts = message.split(';;')
-	
-	parts[1] = retrieve_text(db, user.id, parts[1])
+            if original_message != '':
+                return_text = store_text(db, user.id, args[1], original_message, overwrite=overwrite)
+            else:
+                return_text = constants.EMPTY_MESSAGE
+    
+    else:
+        return_text = store_text(db, user.id, args[1], ' '.join(args[2:]), overwrite=overwrite)
+    
+    return return_text
 
-	if parts[1] is None:
-		return
-	
-	return ' '.join(parts)
+def replace_text(db: SqliteDict, user: str, message: str) -> str:
+    parts = message.split(';;')
+    
+    parts[1] = retrieve_text(db, user.id, parts[1])
 
-def handle_command(db:SqliteDict, user:str, cmd:str, reply=None)->str:
-	if cmd[0] == ';':
-		cmd = cmd[2:]
-	
-	args = cmd.split(' ')
+    if parts[1] is None:
+        return
+    
+    return ' '.join(parts)
 
-	return_text = None
-	match args[0]:
-		case 'add':
-			return_text = add(db, user, args, reply, overwrite=False) or constants.SUCCESSFUL
+def is_admin(user_id: int) -> bool:
+    """Check if the user is an admin."""
+    return user_id in do_not_push.ADMINS
 
-		case 'add_o':
-			return_text = add(db, user, args, reply, overwrite=True) or constants.SUCCESSFUL
-		
-		case 'saved':
-			user_db = db.get(user.id, None)
-			if user_db is None:
-				return_text = constants.EMPTY_LIST
-			else:
-				#TODO: Figure out pagination
-				return_text = '- ' + '\n- '.join(list(user_db.keys()))
+def is_blacklisted(user_id: int) -> bool:
+    """Check if the user is blacklisted."""
+    return user_id in constants.BLACKLIST
 
-		case 'delete':
-			if len(args) == 1:
-				return_text = constants.WRONG_ARGS_DEL
-			else:
-				# Maybe allow deleting multiple keys at a time?
-				user_db = db.get(user.id, None)
-				if user_db is None:
-					return_text = constants.EMPTY_LIST
-				else:
-					deleted = user_db.pop(args[1], None)
-					db[user.id] = user_db
-					return_text = constants.SUCCESSFUL if deleted else constants.KEY_NOT_FOUND
-		
-		case 'delete_me':
-			return_text = constants.SUCCESSFUL if delete_me.delete_me(db, user.id) else constants.EMPTY_LIST
-		
-		case 'rename':
-			match rename_key.rename_key(db, user.id, args[1], args[2]):
-				case 0:
-					return_text = constants.SUCCESSFUL
-				case -1:
-					return_text = constants.EMPTY_LIST
-				case -2:
-					return_text = constants.KEY_NOT_FOUND
-				case -3:
-					return_text = constants.KEY_EXISTS_RENAME
-				case _:
-					return_text = constants.UNSUCCESSFUL
-		
-		case 'rename_o':
-			match rename_key.rename_key(db, user.id, args[1], args[2]):
-				case 0:
-					return_text = constants.SUCCESSFUL
-				case -1:
-					return_text = constants.EMPTY_LIST
-				case -2:
-					return_text = constants.KEY_NOT_FOUND
-				case -3:
-					# Shouldn't occur
-					return_text = constants.KEY_EXISTS_RENAME
-				case _:
-					return_text = constants.UNSUCCESSFUL
+def handle_command(db: SqliteDict, user: discord.User, cmd: str, reply=None) -> str:
+    if cmd[0] == ';':
+        cmd = cmd[2:]
+    
+    args = cmd.split(' ')
 
-		
-		case 'help':
-			return_text = constants.HELP_TEXT
+    return_text = None
+    match args[0]:
+        case 'add':
+            return_text = add(db, user, args, reply, overwrite=False) or constants.SUCCESSFUL
 
-	return return_text
+        case 'add_o':
+            return_text = add(db, user, args, reply, overwrite=True) or constants.SUCCESSFUL
+
+        case 'saved':
+            if len(args) == 2 and args[1].startswith('<@') and args[1].endswith('>'):
+                mentioned_user_id = int(args[1][2:-1])
+                if not is_admin(user.id):
+                    return_text = "You don't have permission to view another user's keys."
+                else:
+                    mentioned_user_db = db.get(mentioned_user_id, None)
+                    if mentioned_user_db is None:
+                        return_text = constants.EMPTY_LIST
+                    else:
+                        return_text = f"Keys for <@{mentioned_user_id}>:\n- " + '\n- '.join(
+                            list(mentioned_user_db.keys())
+                        )
+            else:
+                user_db = db.get(user.id, None)
+                if user_db is None:
+                    return_text = constants.EMPTY_LIST
+                else:
+                    return_text = '- ' + '\n- '.join(list(user_db.keys()))
+
+        case 'delete':
+            if len(args) == 1:
+                return_text = constants.WRONG_ARGS_DEL
+            else:
+                # Maybe allow deleting multiple keys at a time?
+                user_db = db.get(user.id, None)
+                if user_db is None:
+                    return_text = constants.EMPTY_LIST
+                else:
+                    deleted = user_db.pop(args[1], None)
+                    db[user.id] = user_db
+                    return_text = constants.SUCCESSFUL if deleted else constants.KEY_NOT_FOUND
+
+        case 'delete_me':
+            return_text = constants.SUCCESSFUL if delete_me.delete_me(db, user.id) else constants.EMPTY_LIST
+
+        case 'rename':
+            match rename_key.rename_key(db, user.id, args[1], args[2]):
+                case 0:
+                    return_text = constants.SUCCESSFUL
+                case -1:
+                    return_text = constants.EMPTY_LIST
+                case -2:
+                    return_text = constants.KEY_NOT_FOUND
+                case -3:
+                    return_text = constants.KEY_EXISTS_RENAME
+                case _:
+                    return_text = constants.UNSUCCESSFUL
+        
+        case 'rename_o':
+            match rename_key.rename_key(db, user.id, args[1], args[2]):
+                case 0:
+                    return_text = constants.SUCCESSFUL
+                case -1:
+                    return_text = constants.EMPTY_LIST
+                case -2:
+                    return_text = constants.KEY_NOT_FOUND
+                case -3:
+                    # Shouldn't occur
+                    return_text = constants.KEY_EXISTS_RENAME
+                case _:
+                    return_text = constants.UNSUCCESSFUL
+
+        case 'help':
+            return_text = constants.HELP_TEXT
+
+        case 'blacklist_add':
+            if not is_admin(user.id):
+                return_text = "You don't have permission to use this command."
+            elif len(args) == 2 and args[1].startswith('<@') and args[1].endswith('>'):
+                user_id_to_blacklist = int(args[1][2:-1])
+                if user_id_to_blacklist in do_not_push.ADMINS:
+                    return_text = "You cannot blacklist another admin."
+                elif user_id_to_blacklist in constants.BLACKLIST:
+                    return_text = "User is already blacklisted."
+                else:
+                    constants.BLACKLIST.append(user_id_to_blacklist)
+                    return_text = f"User <@{user_id_to_blacklist}> has been blacklisted."
+
+        case 'blacklist_remove':
+            if not is_admin(user.id):
+                return_text = "You don't have permission to use this command."
+            elif len(args) == 2 and args[1].startswith('<@') and args[1].endswith('>'):
+                user_id_to_remove = int(args[1][2:-1])
+                if user_id_to_remove not in constants.BLACKLIST:
+                    return_text = "User is not blacklisted."
+                else:
+                    constants.BLACKLIST.remove(user_id_to_remove)
+                    return_text = f"User <@{user_id_to_remove}> has been removed from the blacklist."
+
+    return return_text
 
 if __name__ == '__main__':
-	intents = discord.Intents.default()
-	intents.message_content = True
+    intents = discord.Intents.default()
+    intents.message_content = True
 
-	client = discord.Client(intents=intents)
+    client = discord.Client(intents=intents)
 
-	db = initialize_db()
+    db = initialize_db()
 
-	@client.event
-	async def on_ready():
-		print(f'Logged in as {client.user}')
+    @client.event
+    async def on_ready():
+        print(f'Logged in as {client.user}')
 
-	@client.event
-	async def on_message(message:discord.Message):
-		if message.author == client.user:
-			return
+    @client.event
+    async def on_message(message: discord.Message):
+        # Ignore messages from the bot itself
+        if message.author == client.user:
+            return
 
-		message_text = message.content.strip()
-		if RE_REPLACE.match(message_text):
-			replaced_text = replace_text(db, message.author, message_text)
-			if replaced_text is not None:
-				if message.reference is not None:
-					await message.reference.resolved.reply(replaced_text)
-				else:
-					await message.reply(replaced_text)
+        # Ignore non-command messages from blacklisted users
+        if is_blacklisted(message.author.id):
+            if not message.content.strip().startswith(';;'):
+                return
+            else:
+                await message.reply("You are blacklisted from using this bot.")
+                return
 
-		elif RE_CMD.match(message_text):
-			reply_text = handle_command(db, message.author, message_text, reply=message.reference)
-			if reply_text is not None:
-				await message.reply(reply_text)
+        # Process command replacements
+        message_text = message.content.strip()
+        if RE_REPLACE.match(message_text):
+            replaced_text = replace_text(db, message.author, message_text)
+            if replaced_text is not None:
+                if message.reference is not None:
+                    await message.reference.resolved.reply(replaced_text)
+                else:
+                    await message.reply(replaced_text)
 
-	try:
-		client.run(api_token.API_TOKEN)
-	except:
-		pass
-		#TODO add logging
-	finally:
-		db.close()
+        # Process bot commands
+        elif RE_CMD.match(message_text):
+            reply_text = handle_command(db, message.author, message_text, reply=message.reference)
+            if reply_text is not None:
+                await message.reply(reply_text)
+
+    try:
+        client.run(do_not_push.API_TOKEN)
+    except Exception as e:
+        print(f"Error: {e}")
+    finally:
+        db.close()
