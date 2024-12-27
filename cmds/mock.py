@@ -1,21 +1,69 @@
 import os
+import re
 from PIL import Image, ImageDraw, ImageFont
 import discord
 
 def get_asset_path(filename: str) -> str:
-    # Get the path to the root directory (one level up from cmds folder)
     root_dir = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
     return os.path.join(root_dir, 'assets', filename)
 
+def process_text(message: discord.Message, content: str) -> list:
+
+    # Create a mapping of user IDs to display names
+    user_mentions = {
+        str(user.id): user.display_name
+        for user in message.mentions
+    }
+    
+    segments = []
+    current_pos = 0
+    
+    # Find all user mentions in the text
+    for match in re.finditer(r'<@!?(\d+)>', content):
+        user_id = match.group(1)
+        
+        # Add text before the mention
+        if match.start() > current_pos:
+            segments.append((content[current_pos:match.start()], True))
+        
+        # Add the mention with display name if found, otherwise keep original mention
+        if user_id in user_mentions:
+            segments.append((f"@{user_mentions[user_id]}", False))
+        else:
+            segments.append((match.group(0), True))
+            
+        current_pos = match.end()
+    
+    # Add remaining text
+    if current_pos < len(content):
+        segments.append((content[current_pos:], True))
+    
+    # Remove empty segments and strip Discord emojis from mockable segments
+    processed_segments = []
+    for text, should_mock in segments:
+        if text:
+            if should_mock:
+                # Strip Discord emojis from mockable text
+                text = re.sub(r'<a?:[a-zA-Z0-9_]+:\d+>', '', text)
+                # Strip Unicode emojis
+                text = text.encode('ascii', 'ignore').decode()
+            if text.strip():  # Only add non-empty segments
+                processed_segments.append((text, should_mock))
+    
+    return processed_segments
+
+def convert_to_mock_case(text: str) -> str:
+    
+    # Remove markdown formatting (##, **, __, etc.)
+    clean_text = discord.utils.remove_markdown(text)
+    # Convert to mocking case
+    return ''.join(c.upper() if i % 2 else c.lower() for i, c in enumerate(clean_text))
+
 def fit_text_to_width(draw, text: str, font: ImageFont.FreeTypeFont, max_width: int) -> str:
-    """
-    Returns the longest substring of text that fits within max_width,
-    adding ellipsis if text is truncated.
-    """
+   
     if draw.textlength(text, font=font) <= max_width:
         return text
-        
-    # Binary search for the maximum fitting length
+
     left, right = 0, len(text)
     while left < right:
         mid = (left + right + 1) // 2
@@ -24,16 +72,18 @@ def fit_text_to_width(draw, text: str, font: ImageFont.FreeTypeFont, max_width: 
             left = mid
         else:
             right = mid - 1
-            
+    
     return text[:left] + "..."
 
-def create_mock_image(text: str) -> str:
-    """
-    Creates a SpongeBob mocking meme with the given text.
-    Returns the path to the saved image.
-    """
-    # Convert text to mocking format (alternating case)
-    mocked_text = ''.join(c.upper() if i % 2 else c.lower() for i, c in enumerate(text))
+def create_mock_image(segments: list) -> str:
+    
+    # Process each segment according to whether it should be mocked
+    processed_text = ''
+    for text, should_mock in segments:
+        if should_mock:
+            processed_text += convert_to_mock_case(text)
+        else:
+            processed_text += text
     
     # Open the base image
     base_image = Image.open(get_asset_path('mock.jpg'))
@@ -42,16 +92,16 @@ def create_mock_image(text: str) -> str:
     draw = ImageDraw.Draw(base_image)
     
     # Load the font
-    font = ImageFont.truetype(get_asset_path('Impacted.ttf'), 36)  # Adjust size as needed
+    font = ImageFont.truetype(get_asset_path('Impacted.ttf'), 36)
     
     # Get image dimensions
     img_w, img_h = base_image.size
     
-    # Calculate maximum width for text (80% of image width)
+    # Calculate maximum width for text (90% of image width)
     max_text_width = int(img_w * 0.9)
     
     # Fit text to width
-    fitted_text = fit_text_to_width(draw, mocked_text, font, max_text_width)
+    fitted_text = fit_text_to_width(draw, processed_text, font, max_text_width)
     
     # Get text dimensions
     text_bbox = draw.textbbox((0, 0), fitted_text, font=font)
@@ -68,19 +118,17 @@ def create_mock_image(text: str) -> str:
     # Save the image
     output_path = os.path.join(os.path.dirname(os.path.dirname(os.path.abspath(__file__))), 'temp_mock.jpg')
     base_image.save(output_path)
-    
     return output_path
 
 def handle_mock_command(reply: discord.MessageReference) -> discord.File:
-    """
-    Handles the mock command by creating and returning a meme image.
-    """
+    
     if reply is None or reply.resolved is None:
         return None
-        
-    target_message = reply.resolved.content
-    if not target_message:
+    
+    segments = process_text(reply.resolved, reply.resolved.content)
+    
+    if not segments:
         return None
         
-    image_path = create_mock_image(target_message)
+    image_path = create_mock_image(segments)
     return discord.File(image_path)
