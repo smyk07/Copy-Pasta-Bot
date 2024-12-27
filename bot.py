@@ -2,6 +2,7 @@ import do_not_push
 import constants
 import re
 import discord
+import os
 from sqlitedict import SqliteDict
 from cmds import *
 
@@ -150,6 +151,12 @@ def handle_command(db: SqliteDict, user: discord.User, cmd: str, reply=None) -> 
                 case _:
                     return_text = constants.UNSUCCESSFUL
 
+        case 'mock':
+            if reply is None:
+                return_text = "You need to reply to a message to use this command."
+            else:
+                return mock.handle_mock_command(reply)
+
         case 'help':
             return_text = constants.HELP_TEXT
 
@@ -217,9 +224,18 @@ if __name__ == '__main__':
 
         # Process bot commands
         elif RE_CMD.match(message_text):
-            reply_text = handle_command(db, message.author, message_text, reply=message.reference)
-            if reply_text is not None:
-                await message.reply(reply_text)
+            response = handle_command(db, message.author, message_text, reply=message.reference)
+            if response is not None:
+                if isinstance(response, discord.File):
+                    # For mock command, reply to the original message instead of the command
+                    if message.content.strip()[2:].startswith('mock'):
+                        await message.reference.resolved.reply(file=response)
+                    else:
+                        await message.reply(file=response)
+                    # Clean up the temporary file
+                    os.remove(response.fp.name)
+                else:
+                    await message.reply(response)
 
     try:
         client.run(do_not_push.API_TOKEN)

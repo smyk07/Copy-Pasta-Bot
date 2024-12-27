@@ -18,6 +18,7 @@ Start command with `;;`
 - **delete_me** : Delete all your keys (can't be undone)
 - **rename <original_key> <new_key>** : Rename a key
 - **rename_o <original_key> <new_key>** : Rename a key but overwrite
+- **mock** : Mock a message
 
 Usage ;;key;;
 '''
