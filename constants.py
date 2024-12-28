@@ -22,8 +22,11 @@ Start command with `;;`
 - **delete_me** : Delete all your keys (can't be undone)
 - **rename <original_key> <new_key>** : Rename a key
 - **rename_o <original_key> <new_key>** : Rename a key but overwrite
-- **mock** : Mock a message
 - **steal <user> <key> <new_key>**: Steal a key from the user. `new_key` is optional.
+
+Meme Commands:
+- **mock** : Mock a message
+- **clap** : Clap between words
 
 Usage ;;key;;
 '''

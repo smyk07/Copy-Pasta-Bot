@@ -201,6 +201,11 @@ def handle_command(db: SqliteDict, user: discord.User, cmd: str, reply=None) -> 
 				else:
 					constants.BLACKLIST.remove(user_id_to_remove)
 					return_text = f"User <@{user_id_to_remove}> has been removed from the blacklist."
+		case 'clap':
+			if reply is None:
+				return_text = "You need to reply to a message to use this command."
+			else:
+				return_text = clap.handle_clap_command(reply)
 
 	return return_text
 
@@ -253,7 +258,10 @@ if __name__ == '__main__':
 					# Clean up the temporary file
 					os.remove(response.fp.name)
 				else:
-					await message.reply(response)
+					if message.content.strip()[2:].startswith('clap'):
+						await message.reference.resolved.reply(response)
+					else:
+						await message.reply(response)
 
 	try:
 		client.run(do_not_push.API_TOKEN)
