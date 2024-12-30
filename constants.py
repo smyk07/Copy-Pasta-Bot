@@ -27,6 +27,7 @@ Start command with `;;`
 Meme Commands:
 - **mock** : Mock a message
 - **clap** : Clap between words
+- **zalgo** : Add zalgo text effects
 
 Usage ;;key;;
 '''

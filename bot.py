@@ -206,6 +206,11 @@ def handle_command(db: SqliteDict, user: discord.User, cmd: str, reply=None) -> 
 				return_text = "You need to reply to a message to use this command."
 			else:
 				return_text = clap.handle_clap_command(reply)
+		case 'zalgo':
+			if reply is None:
+				return_text = "You need to reply to a message to use this command."
+			else:
+				return_text = zalgo.handle_zalgo_command(reply)
 
 	return return_text
 
@@ -258,7 +263,8 @@ if __name__ == '__main__':
 					# Clean up the temporary file
 					os.remove(response.fp.name)
 				else:
-					if message.content.strip()[2:].startswith('clap'):
+					cmd = message.content.strip()[2:]
+					if cmd.startswith('clap') or cmd.startswith('zalgo'):
 						await message.reference.resolved.reply(response)
 					else:
 						await message.reply(response)
