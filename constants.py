@@ -24,10 +24,15 @@ Start command with `;;`
 - **rename_o <original_key> <new_key>** : Rename a key but overwrite
 - **steal <user> <key> <new_key>**: Steal a key from the user. `new_key` is optional.
 
-Meme Commands:
+Meme Commands: (work only when you reply to a text or an image)
 - **mock** : Mock a message
 - **clap** : Clap between words
 - **zalgo** : Add zalgo text effects
+- **deepfry** : Deep fry an image
+- **owo** : OwOify text
+- **copypasta** : Generate copypasta text from a message
+- **forbesify** : Convert text to...
+- **stretch** : Streeeeech aaaaa teeeext
 
 Usage ;;key;;
 '''

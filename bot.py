@@ -78,7 +78,7 @@ def is_blacklisted(user_id: int) -> bool:
 	"""Check if the user is blacklisted."""
 	return user_id in constants.BLACKLIST
 
-def handle_command(db: SqliteDict, user: discord.User, cmd: str, reply=None) -> str:
+async def handle_command(db: SqliteDict, user: discord.User, cmd: str, reply=None) -> str:
 	if cmd[0] == ';':
 		cmd = cmd[2:]
 	
@@ -174,6 +174,12 @@ def handle_command(db: SqliteDict, user: discord.User, cmd: str, reply=None) -> 
 			steal_from = steal_from[2:-1]
 
 			return steal.steal(db, user.id, args[2], steal_from, new_key)
+		
+		case 'deepfry':
+			if reply is None:
+				return_text = "You need to reply to a message with an image to use this command."
+			else:
+				return_text = await deepfry.handle_deepfry_command(reply)
 
 		case 'help':
 			return_text = constants.HELP_TEXT
@@ -211,6 +217,26 @@ def handle_command(db: SqliteDict, user: discord.User, cmd: str, reply=None) -> 
 				return_text = "You need to reply to a message to use this command."
 			else:
 				return_text = zalgo.handle_zalgo_command(reply)
+		case 'forbesify':
+			if reply is None:
+				return_text = "You need to reply to a message to use this command."
+			else:
+				return_text = forbesify.handle_forbesify_command(reply)
+		case 'copypasta':
+			if reply is None:
+				return_text = "You need to reply to a message to use this command."
+			else:
+				return_text = copypasta.handle_copypasta_command(reply)
+		case 'owo':
+			if reply is None:
+				return_text = "You need to reply to a message to use this command."
+			else:
+				return_text = owo.handle_owo_command(reply)
+		case 'stretch':
+			if reply is None:
+				return_text = "You need to reply to a message to use this command."
+			else:
+				return_text = stretch.handle_stretch_command(reply)
 
 	return return_text
 
@@ -252,19 +278,19 @@ if __name__ == '__main__':
 
 		# Process bot commands
 		elif RE_CMD.match(message_text):
-			response = handle_command(db, message.author, message_text, reply=message.reference)
+			response = await handle_command(db, message.author, message_text, reply=message.reference)
 			if response is not None:
+				cmd = message.content.strip()[2:]
 				if isinstance(response, discord.File):
-					# For mock command, reply to the original message instead of the command
-					if message.content.strip()[2:].startswith('mock'):
+					if cmd.startswith(('mock', 'deepfry')):
 						await message.reference.resolved.reply(file=response)
 					else:
 						await message.reply(file=response)
-					# Clean up the temporary file
-					os.remove(response.fp.name)
+					# Clean up only if it's a temporary file, not BytesIO
+					if hasattr(response.fp, 'name'):
+						os.remove(response.fp.name)
 				else:
-					cmd = message.content.strip()[2:]
-					if cmd.startswith('clap') or cmd.startswith('zalgo'):
+					if cmd.startswith(('clap', 'zalgo', 'forbesify', 'copypasta', 'owo', 'stretch')):
 						await message.reference.resolved.reply(response)
 					else:
 						await message.reply(response)

@@ -1,5 +1,7 @@
 FROM python:3.12.7
 
+RUN apt-get update && apt-get install ffmpeg libsm6 libxext6  -y
+
 WORKDIR /bot
 
 RUN mkdir -p /bot/db
