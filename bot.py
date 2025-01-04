@@ -1,303 +1,279 @@
 import do_not_push
 import constants
 import re
+import asyncio
+from typing import Optional, Union, Callable
 import discord
 import os
 from sqlitedict import SqliteDict
 from cmds import *
 import sys
 
-# Jugaad to import constants in cmds
 sys.path.append(os.path.basename(__file__))
 
-RE_CMD = re.compile(constants.COMMAND)
-RE_REPLACE = re.compile(constants.REPLACE)
-
-def initialize_db():
-	return SqliteDict(constants.DB_NAME, autocommit=True)
-
-def store_text(db: SqliteDict, user: str, key: str, value: str, overwrite=False) -> str:
-	user_db = db.get(user, None) or {}
-
-	val = user_db.get(key, None)  # Apparently faster than `in` or `try...except`?
-	if val is not None:
-		if not overwrite:
-			return constants.KEY_EXISTS_ADD
-
-	user_db[key] = value
-	db[user] = user_db
-
-def retrieve_text(db: SqliteDict, user: str, key: str) -> str:
-	user_db = db.get(user, None)
-	if user_db is not None:
-		return user_db.get(key, None)
-	return None
-
-def add(db: SqliteDict, user: str, args: list, reply, overwrite: bool) -> str:
-	if len(args) == 1:
-		return_text = constants.WRONG_ARGS_ADD
-	
-	elif len(args) == 2:
-		if reply is None:
-			return_text = constants.WRONG_ARGS_ADD
-		else:
-			original_message = reply.resolved.content.strip() or ''
-
-			# Multiple attachments
-			for i in range(len(reply.resolved.attachments)):
-				original_message += f'[Attachment {i}]({reply.resolved.attachments[i].url}) '
-
-			for i in reply.resolved.stickers:
-				original_message += f'[{i.name}]({i.url}) '
-
-			if original_message != '':
-				return_text = store_text(db, user.id, args[1], original_message, overwrite=overwrite)
-			else:
-				return_text = constants.EMPTY_MESSAGE
-	
-	else:
-		return_text = store_text(db, user.id, args[1], ' '.join(args[2:]), overwrite=overwrite)
-	
-	return return_text
-
-def replace_text(db: SqliteDict, user: str, message: str) -> str:
-	parts = message.split(';;')
-	
-	parts[1] = retrieve_text(db, user.id, parts[1])
-
-	if parts[1] is None:
-		return
-	
-	return ' '.join(parts)
-
 def is_admin(user_id: int) -> bool:
-	"""Check if the user is an admin."""
-	return user_id in do_not_push.ADMINS
+    return user_id in do_not_push.ADMINS
 
 def is_blacklisted(user_id: int) -> bool:
-	"""Check if the user is blacklisted."""
-	return user_id in constants.BLACKLIST
+    return user_id in constants.BLACKLIST
+class DatabaseManager:
+    def __init__(self, db_name: str):
+        self.db = SqliteDict(db_name, autocommit=True)
 
-async def handle_command(db: SqliteDict, user: discord.User, cmd: str, reply=None) -> str:
-	if cmd[0] == ';':
-		cmd = cmd[2:]
-	
-	args = cmd.split(' ')
+    def store_text(self, user: str, key: str, value: str, overwrite=False) -> str:
+        user_db = self.db.get(user, {})
+        if key in user_db and not overwrite:
+            return constants.KEY_EXISTS_ADD
+        user_db[key] = value
+        self.db[user] = user_db
+        return constants.SUCCESSFUL
 
-	return_text = None
-	match args[0]:
-		case 'add':
-			return_text = add(db, user, args, reply, overwrite=False) or constants.SUCCESSFUL
+    def retrieve_text(self, user: str, key: str) -> Optional[str]:
+        return self.db.get(user, {}).get(key)
 
-		case 'add_o':
-			return_text = add(db, user, args, reply, overwrite=True) or constants.SUCCESSFUL
+    def get_user_keys(self, user: str) -> list:
+        return list(self.db.get(user, {}).keys())
 
-		case 'saved':
-			if len(args) == 2 and args[1].startswith('<@') and args[1].endswith('>'):
-				mentioned_user_id = int(args[1][2:-1])
-				if not is_admin(user.id):
-					return_text = "You don't have permission to view another user's keys."
-				else:
-					mentioned_user_db = db.get(mentioned_user_id, None)
-					if mentioned_user_db is None:
-						return_text = constants.EMPTY_LIST
-					else:
-						return_text = f"Keys for <@{mentioned_user_id}>:\n- " + '\n- '.join(
-							list(mentioned_user_db.keys())
-						)
-			else:
-				user_db = db.get(user.id, None)
-				if user_db is None:
-					return_text = constants.EMPTY_LIST
-				else:
-					return_text = '- ' + '\n- '.join(list(user_db.keys()))
+    def close(self):
+        self.db.close()
+        
+    def delete_key(self, user: str, key: str) -> bool:
+        user_db = self.db.get(user, {})
+        if key in user_db:
+            del user_db[key]
+            self.db[user] = user_db
+            return True
+        return False
 
-		case 'delete':
-			if len(args) == 1:
-				return_text = constants.WRONG_ARGS_DEL
-			else:
-				# Maybe allow deleting multiple keys at a time?
-				user_db = db.get(user.id, None)
-				if user_db is None:
-					return_text = constants.EMPTY_LIST
-				else:
-					deleted = user_db.pop(args[1], None)
-					db[user.id] = user_db
-					return_text = constants.SUCCESSFUL if deleted else constants.KEY_NOT_FOUND
+class CommandHandler:
+    def __init__(self, db_manager: DatabaseManager):
+        self.db = db_manager
+        self.commands = {
+            'add': self._handle_add,
+            'add_o': lambda u, a, r: self._handle_add(u, a, r, True),
+            'saved': self._handle_saved,
+            'delete': self._handle_delete,
+            'delete_me': self._handle_delete_me,
+            'rename': lambda u, a, r: self._handle_rename(u, a, False),
+            'rename_o': lambda u, a, r: self._handle_rename(u, a, True),
+            'mock': self._handle_mock,
+            'steal': self._handle_steal,
+            'deepfry': self._handle_deepfry,
+            'help': lambda u, a, r: constants.HELP_TEXT,
+            'blacklist_add': self._handle_blacklist_add,
+            'blacklist_remove': self._handle_blacklist_remove,
+            'clap': self._handle_text_transform('clap'),
+            'zalgo': self._handle_text_transform('zalgo'),
+            'forbesify': self._handle_text_transform('forbesify'),
+            'copypasta': self._handle_text_transform('copypasta'),
+            'owo': self._handle_text_transform('owo'),
+            'stretch': self._handle_text_transform('stretch')
+        }
 
-		case 'delete_me':
-			return_text = constants.SUCCESSFUL if delete_me.delete_me(db, user.id) else constants.EMPTY_LIST
+    def _handle_add(self, user: discord.User, args: list, reply, overwrite=False) -> str:
+        if len(args) == 1 or (len(args) == 2 and reply is None):
+            return constants.WRONG_ARGS_ADD
 
-		case 'rename':
-			match rename_key.rename_key(db, user.id, args[1], args[2]):
-				case 0:
-					return_text = constants.SUCCESSFUL
-				case -1:
-					return_text = constants.EMPTY_LIST
-				case -2:
-					return_text = constants.KEY_NOT_FOUND
-				case -3:
-					return_text = constants.KEY_EXISTS_RENAME
-				case _:
-					return_text = constants.UNSUCCESSFUL
-		
-		case 'rename_o':
-			match rename_key.rename_key(db, user.id, args[1], args[2]):
-				case 0:
-					return_text = constants.SUCCESSFUL
-				case -1:
-					return_text = constants.EMPTY_LIST
-				case -2:
-					return_text = constants.KEY_NOT_FOUND
-				case -3:
-					# Shouldn't occur
-					return_text = constants.KEY_EXISTS_RENAME
-				case _:
-					return_text = constants.UNSUCCESSFUL
+        if len(args) == 2:
+            if reply is None:
+                return constants.WRONG_ARGS_ADD
+            
+            original_message = reply.resolved.content.strip() or ''
+            original_message += self._get_attachments_text(reply.resolved)
+            
+            if not original_message:
+                return constants.EMPTY_MESSAGE
+            
+            return self.db.store_text(user.id, args[1], original_message, overwrite)
 
-		case 'mock':
-			if reply is None:
-				return_text = "You need to reply to a message to use this command."
-			else:
-				return mock.handle_mock_command(reply)
-		
-		case 'steal':
-			if len(args) not in {3, 4}:
-				return constants.WRONG_ARGS
+        return self.db.store_text(user.id, args[1], ' '.join(args[2:]), overwrite)
 
-			new_key = args[3] if len(args) == 4 else None
+    def _get_attachments_text(self, message: discord.Message) -> str:
+        text = ''
+        for i, attachment in enumerate(message.attachments):
+            text += f'[Attachment {i}]({attachment.url}) '
+        for sticker in message.stickers:
+            text += f'[{sticker.name}]({sticker.url}) '
+        return text
 
-			steal_from = args[1]
-			if not steal_from.startswith('<@') or not steal_from.endswith('>'):
-				return constants.WRONG_USER_ID
+    def _handle_saved(self, user: discord.User, args: list, reply) -> str:
+        if len(args) == 2 and args[1].startswith('<@') and args[1].endswith('>'):
+            if not is_admin(user.id):
+                return "You don't have permission to view another user's keys."
+            mentioned_user_id = int(args[1][2:-1])
+            keys = self.db.get_user_keys(mentioned_user_id)
+            return f"Keys for <@{mentioned_user_id}>:\n- " + '\n- '.join(keys) if keys else constants.EMPTY_LIST
 
-			steal_from = steal_from[2:-1]
+        keys = self.db.get_user_keys(user.id)
+        return '- ' + '\n- '.join(keys) if keys else constants.EMPTY_LIST
 
-			return steal.steal(db, user.id, args[2], steal_from, new_key)
-		
-		case 'deepfry':
-			if reply is None:
-				return_text = "You need to reply to a message with an image to use this command."
-			else:
-				return_text = await deepfry.handle_deepfry_command(reply)
+    def _handle_text_transform(self, command_type: str) -> Callable:
+        handlers = {
+            'clap': clap.handle_clap_command,
+            'zalgo': zalgo.handle_zalgo_command,
+            'forbesify': forbesify.handle_forbesify_command,
+            'copypasta': copypasta.handle_copypasta_command,
+            'owo': owo.handle_owo_command,
+            'stretch': stretch.handle_stretch_command
+        }
+        
+        def handler(user: discord.User, args: list, reply) -> str:
+            if reply is None:
+                return "You need to reply to a message to use this command."
+            return handlers[command_type](reply)
+        
+        return handler
+    
+    def _handle_delete(self, user: discord.User, args: list, reply) -> str:
+        if len(args) == 1:
+            return constants.WRONG_ARGS_DEL
+        return constants.SUCCESSFUL if self.db.delete_key(user.id, args[1]) else constants.KEY_NOT_FOUND
 
-		case 'help':
-			return_text = constants.HELP_TEXT
+    def _handle_delete_me(self, user: discord.User, args: list, reply) -> str:
+        return constants.SUCCESSFUL if delete_me.delete_me(self.db.db, user.id) else constants.EMPTY_LIST
 
-		case 'blacklist_add':
-			if not is_admin(user.id):
-				return_text = "You don't have permission to use this command."
-			elif len(args) == 2 and args[1].startswith('<@') and args[1].endswith('>'):
-				user_id_to_blacklist = int(args[1][2:-1])
-				if user_id_to_blacklist in do_not_push.ADMINS:
-					return_text = "You cannot blacklist another admin."
-				elif user_id_to_blacklist in constants.BLACKLIST:
-					return_text = "User is already blacklisted."
-				else:
-					constants.BLACKLIST.append(user_id_to_blacklist)
-					return_text = f"User <@{user_id_to_blacklist}> has been blacklisted."
+    def _handle_rename(self, user: discord.User, args: list, overwrite: bool) -> str:
+        if len(args) != 3:
+            return constants.WRONG_ARGS_DEL
+        status = rename_key.rename_key(self.db.db, user.id, args[1], args[2])
+        match status:
+            case 0: return constants.SUCCESSFUL
+            case -1: return constants.EMPTY_LIST
+            case -2: return constants.KEY_NOT_FOUND
+            case -3: return constants.KEY_EXISTS_RENAME if not overwrite else constants.UNSUCCESSFUL
+            case _: return constants.UNSUCCESSFUL
 
-		case 'blacklist_remove':
-			if not is_admin(user.id):
-				return_text = "You don't have permission to use this command."
-			elif len(args) == 2 and args[1].startswith('<@') and args[1].endswith('>'):
-				user_id_to_remove = int(args[1][2:-1])
-				if user_id_to_remove not in constants.BLACKLIST:
-					return_text = "User is not blacklisted."
-				else:
-					constants.BLACKLIST.remove(user_id_to_remove)
-					return_text = f"User <@{user_id_to_remove}> has been removed from the blacklist."
-		case 'clap':
-			if reply is None:
-				return_text = "You need to reply to a message to use this command."
-			else:
-				return_text = clap.handle_clap_command(reply)
-		case 'zalgo':
-			if reply is None:
-				return_text = "You need to reply to a message to use this command."
-			else:
-				return_text = zalgo.handle_zalgo_command(reply)
-		case 'forbesify':
-			if reply is None:
-				return_text = "You need to reply to a message to use this command."
-			else:
-				return_text = forbesify.handle_forbesify_command(reply)
-		case 'copypasta':
-			if reply is None:
-				return_text = "You need to reply to a message to use this command."
-			else:
-				return_text = copypasta.handle_copypasta_command(reply)
-		case 'owo':
-			if reply is None:
-				return_text = "You need to reply to a message to use this command."
-			else:
-				return_text = owo.handle_owo_command(reply)
-		case 'stretch':
-			if reply is None:
-				return_text = "You need to reply to a message to use this command."
-			else:
-				return_text = stretch.handle_stretch_command(reply)
+    def _handle_mock(self, user: discord.User, args: list, reply) -> Union[str, discord.File]:
+        if reply is None:
+            return "You need to reply to a message to use this command."
+        return mock.handle_mock_command(reply)
 
-	return return_text
+    async def _handle_deepfry(self, user: discord.User, args: list, reply) -> Union[str, discord.File]:
+        if reply is None:
+            return "You need to reply to a message with an image to use this command."
+        return await deepfry.handle_deepfry_command(reply)
+
+    def _handle_steal(self, user: discord.User, args: list, reply) -> str:
+        if len(args) not in {3, 4}:
+            return constants.WRONG_ARGS
+        
+        steal_from = args[1]
+        if not steal_from.startswith('<@') or not steal_from.endswith('>'):
+            return constants.WRONG_USER_ID
+            
+        steal_from = steal_from[2:-1]
+        new_key = args[3] if len(args) == 4 else None
+        return steal.steal(self.db.db, user.id, args[2], steal_from, new_key)
+
+    def _handle_blacklist_add(self, user: discord.User, args: list, reply) -> str:
+        if not is_admin(user.id):
+            return "You don't have permission to use this command."
+        if len(args) != 2 or not args[1].startswith('<@') or not args[1].endswith('>'):
+            return "Invalid user mention"
+        user_id_to_blacklist = int(args[1][2:-1])
+        if user_id_to_blacklist in do_not_push.ADMINS:
+            return "You cannot blacklist another admin."
+        if user_id_to_blacklist in constants.BLACKLIST:
+            return "User is already blacklisted."
+        constants.BLACKLIST.append(user_id_to_blacklist)
+        return f"User <@{user_id_to_blacklist}> has been blacklisted."
+
+    def _handle_blacklist_remove(self, user: discord.User, args: list, reply) -> str:
+        if not is_admin(user.id):
+            return "You don't have permission to use this command."
+        if len(args) != 2 or not args[1].startswith('<@') or not args[1].endswith('>'):
+            return "Invalid user mention"
+        user_id_to_remove = int(args[1][2:-1])
+        if user_id_to_remove not in constants.BLACKLIST:
+            return "User is not blacklisted."
+        constants.BLACKLIST.remove(user_id_to_remove)
+        return f"User <@{user_id_to_remove}> has been removed from the blacklist."
+
+    async def handle_command(self, user: discord.User, cmd: str, reply=None) -> Optional[Union[str, discord.File]]:
+        if cmd.startswith(';;'):
+            cmd = cmd[2:]
+        
+        args = cmd.split()
+        if not args:
+            return None
+
+        command = args[0]
+        if command in self.commands:
+            return await self.commands[command](user, args, reply) if asyncio.iscoroutinefunction(self.commands[command]) else self.commands[command](user, args, reply)
+        return None
+
+class DiscordBot:
+    def __init__(self, token: str):
+        self.token = token
+        intents = discord.Intents.default()
+        intents.message_content = True
+        self.client = discord.Client(intents=intents)
+        self.db_manager = DatabaseManager(constants.DB_NAME)
+        self.command_handler = CommandHandler(self.db_manager)
+        self.setup_events()
+
+    def setup_events(self):
+        @self.client.event
+        async def on_ready():
+            print(f'Logged in as {self.client.user}')
+
+        @self.client.event
+        async def on_message(message: discord.Message):
+            if message.author == self.client.user or message.author.bot:
+                return
+
+            if is_blacklisted(message.author.id):
+                if message.content.strip().startswith(';;'):
+                    await message.reply("You are blacklisted from using this bot.")
+                return
+
+            await self.process_message(message)
+
+    async def process_message(self, message: discord.Message):
+        content = message.content.strip()
+        if re.match(constants.REPLACE, content):
+            await self.handle_replacement(message)
+        elif re.match(constants.COMMAND, content):
+            await self.handle_bot_command(message)
+
+    async def handle_replacement(self, message: discord.Message):
+        parts = message.content.strip().split(';;')
+        replaced_text = self.db_manager.retrieve_text(message.author.id, parts[1])
+        if replaced_text:
+            target = message.reference.resolved if message.reference else message
+            await target.reply(replaced_text)
+
+    async def handle_bot_command(self, message: discord.Message):
+        response = await self.command_handler.handle_command(
+            message.author, 
+            message.content.strip(), 
+            reply=message.reference
+        )
+        
+        if response:
+            await self.send_response(message, response)
+
+    async def send_response(self, message: discord.Message, response):
+        cmd = message.content.strip()[2:]
+        reply_to = message.reference.resolved if message.reference and cmd.split()[0] in {
+            'mock', 'deepfry', 'clap', 'zalgo', 'forbesify', 'copypasta', 'owo', 'stretch'
+        } else message
+
+        if isinstance(response, discord.File):
+            await reply_to.reply(file=response)
+            if hasattr(response.fp, 'name'):
+                os.remove(response.fp.name)
+        else:
+            await reply_to.reply(response)
+
+    def run(self):
+        try:
+            self.client.run(self.token)
+        except Exception as e:
+            print(f"Error: {e}")
+        finally:
+            self.db_manager.close()
 
 if __name__ == '__main__':
-	intents = discord.Intents.default()
-	intents.message_content = True
-
-	client = discord.Client(intents=intents)
-
-	db = initialize_db()
-
-	@client.event
-	async def on_ready():
-		print(f'Logged in as {client.user}')
-
-	@client.event
-	async def on_message(message: discord.Message):
-		# Ignore messages from the bot itself
-		if message.author == client.user:
-			return
-
-		# Ignore non-command messages from blacklisted users
-		if is_blacklisted(message.author.id):
-			if not message.content.strip().startswith(';;'):
-				return
-			else:
-				await message.reply("You are blacklisted from using this bot.")
-				return
-
-		# Process command replacements
-		message_text = message.content.strip()
-		if RE_REPLACE.match(message_text):
-			replaced_text = replace_text(db, message.author, message_text)
-			if replaced_text is not None:
-				if message.reference is not None:
-					await message.reference.resolved.reply(replaced_text)
-				else:
-					await message.reply(replaced_text)
-
-		# Process bot commands
-		elif RE_CMD.match(message_text):
-			response = await handle_command(db, message.author, message_text, reply=message.reference)
-			if response is not None:
-				cmd = message.content.strip()[2:]
-				if isinstance(response, discord.File):
-					if cmd.startswith(('mock', 'deepfry')):
-						await message.reference.resolved.reply(file=response)
-					else:
-						await message.reply(file=response)
-					# Clean up only if it's a temporary file, not BytesIO
-					if hasattr(response.fp, 'name'):
-						os.remove(response.fp.name)
-				else:
-					if cmd.startswith(('clap', 'zalgo', 'forbesify', 'copypasta', 'owo', 'stretch')):
-						await message.reference.resolved.reply(response)
-					else:
-						await message.reply(response)
-
-	try:
-		client.run(do_not_push.API_TOKEN)
-	except Exception as e:
-		print(f"Error: {e}")
-	finally:
-		db.close()
+    bot = DiscordBot(do_not_push.API_TOKEN)
+    bot.run()
