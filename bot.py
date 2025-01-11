@@ -269,8 +269,14 @@ class DiscordBot:
 			await reply_to.reply(file=response)
 			if hasattr(response.fp, 'name'):
 				os.remove(response.fp.name)
+		elif isinstance(response, str):
+			if len(response) > 2000:
+				# Always reply to the command message for error responses
+				await message.reply("## Fuck me! Keep it under the 2k character limit of Discord.")
+			else:
+				await reply_to.reply(response)
 		else:
-			await reply_to.reply(response)
+			print("Unhandled response type:", type(response))
 
 	def run(self):
 		try:
