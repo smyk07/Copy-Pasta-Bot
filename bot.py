@@ -228,8 +228,8 @@ class DiscordBot:
 			if message.author == self.client.user or message.author.bot:
 				return
 
-			if message.content.strip().startswith(';;'):
-				if is_blacklisted(message.author.id):
+			if is_blacklisted(message.author.id):
+				if message.content.strip().startswith(';;'):
 					await message.reply("You are blacklisted from using this bot.")
 				return
 
