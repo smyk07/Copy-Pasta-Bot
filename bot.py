@@ -73,7 +73,8 @@ class CommandHandler:
 			'forbesify': self._handle_text_transform('forbesify'),
 			'copypasta': self._handle_text_transform('copypasta'),
 			'owo': self._handle_text_transform('owo'),
-			'stretch': self._handle_text_transform('stretch')
+			'stretch': self._handle_text_transform('stretch'),
+			'random': lambda u, a, r: self._handle_random(u)
 		}
 
 	def _handle_add(self, user: discord.User, args: list, reply, overwrite=False) -> str:
@@ -194,6 +195,9 @@ class CommandHandler:
 			return "User is not blacklisted."
 		constants.BLACKLIST.remove(user_id_to_remove)
 		return f"User <@{user_id_to_remove}> has been removed from the blacklist."
+
+	def _handle_random(self, user: discord.User) -> str:
+		return random_key.random_key(self.db.db, user.id)
 
 	async def handle_command(self, user: discord.User, cmd: str, reply=None) -> Optional[Union[str, discord.File]]:
 		if cmd.startswith(';;'):
