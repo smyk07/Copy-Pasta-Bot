@@ -74,7 +74,8 @@ class CommandHandler:
 			'copypasta': self._handle_text_transform('copypasta'),
 			'owo': self._handle_text_transform('owo'),
 			'stretch': self._handle_text_transform('stretch'),
-			'random': lambda u, a, r: self._handle_random(u)
+			'random': lambda u, a, r: self._handle_random(u),
+			'dream': self._handle_dream,
 		}
 
 	def _handle_add(self, user: discord.User, args: list, reply, overwrite=False) -> str:
@@ -159,6 +160,9 @@ class CommandHandler:
 		if reply is None:
 			return "You need to reply to a message with an image to use this command."
 		return await deepfry.handle_deepfry_command(reply)
+
+	async def _handle_dream(self, user: discord.User, args: list, reply) -> Union[str, discord.File, None]:
+		return await dream.handle_dream_command(user, args, message=reply)
 
 	def _handle_steal(self, user: discord.User, args: list, reply) -> str:
 		if len(args) not in {3, 4}:

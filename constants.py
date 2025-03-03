@@ -23,6 +23,7 @@ Start command with `;;`
 - **rename <original_key> <new_key>** : Rename a key
 - **rename_o <original_key> <new_key>** : Rename a key but overwrite
 - **steal <user> <key> <new_key>**: Steal a key from the user. `new_key` is optional.
+- **random** : Send a random value from saved keys
 
 Usage ;;key;;
 
@@ -35,6 +36,7 @@ Meme Commands: (work only when you reply to a text or an image)
 - **copypasta** : Generate copypasta text from a message
 - **forbesify** : Convert text to...
 - **stretch** : Streeeeech aaaaa teeeext
+- **dream** : Generate an image from Luma AI
 
 Usage: ;;command
 '''
@@ -45,3 +47,5 @@ REPLACE 		= r'(^|\S+\s+);;\S+;;(\s+\S+|$)' # ;;word;;
 
 # List of Blacklisted users
 BLACKLIST = []
+
+COMMAND_COOLDOWN = 2  # Cooldown of 2 seconds
