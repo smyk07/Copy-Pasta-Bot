@@ -24,6 +24,7 @@ Start command with `;;`
 - **rename_o <original_key> <new_key>** : Rename a key but overwrite
 - **steal <user> <key> <new_key>**: Steal a key from the user. `new_key` is optional.
 - **random** : Send a random value from saved keys
+- **search** <key> : Search your keys for occurence of this key
 
 Usage ;;key;;
 

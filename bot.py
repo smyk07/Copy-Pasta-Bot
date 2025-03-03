@@ -76,6 +76,7 @@ class CommandHandler:
 			'stretch': self._handle_text_transform('stretch'),
 			'random': lambda u, a, r: self._handle_random(u),
 			'dream': self._handle_dream,
+			'search': lambda u, a, r: self._handle_search(u, a),
 		}
 
 	def _handle_add(self, user: discord.User, args: list, reply, overwrite=False) -> str:
@@ -202,6 +203,11 @@ class CommandHandler:
 
 	def _handle_random(self, user: discord.User) -> str:
 		return random_key.random_key(self.db.db, user.id)
+
+	def _handle_search(self, user: discord.User, args: list) -> str:
+		if len(args) != 2:
+			return constants.WRONG_ARGS
+		return search.search(self.db.db, user.id, args[1])
 
 	async def handle_command(self, user: discord.User, cmd: str, reply=None) -> Optional[Union[str, discord.File]]:
 		if cmd.startswith(';;'):
