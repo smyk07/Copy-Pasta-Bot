@@ -110,10 +110,10 @@ class CommandHandler:
 			if not is_admin(user.id):
 				return "You don't have permission to view another user's keys."
 			mentioned_user_id = int(args[1][2:-1])
-			keys = self.db.get_user_keys(mentioned_user_id)
+			keys = sorted(self.db.get_user_keys(mentioned_user_id))
 			return f"Keys for <@{mentioned_user_id}>:\n- " + '\n- '.join(keys) if keys else constants.EMPTY_LIST
 
-		keys = self.db.get_user_keys(user.id)
+		keys = sorted(self.db.get_user_keys(user.id))
 		return '- ' + '\n- '.join(keys) if keys else constants.EMPTY_LIST
 
 	def _handle_text_transform(self, command_type: str) -> Callable:
