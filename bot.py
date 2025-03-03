@@ -270,7 +270,7 @@ class DiscordBot:
 	async def send_response(self, message: discord.Message, response):
 		cmd = message.content.strip()[2:]
 		reply_to = message.reference.resolved if message.reference and cmd.split()[0] in {
-			'mock', 'deepfry', 'clap', 'zalgo', 'forbesify', 'copypasta', 'owo', 'stretch'
+			'mock', 'deepfry', 'clap', 'zalgo', 'forbesify', 'copypasta', 'owo', 'stretch', 'random'
 		} else message
 
 		if isinstance(response, discord.File):
