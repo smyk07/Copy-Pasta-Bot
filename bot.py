@@ -8,6 +8,7 @@ import os
 from sqlitedict import SqliteDict
 from cmds import *
 import sys
+from datetime import datetime, timedelta, timezone
 
 sys.path.append(os.path.basename(__file__))
 
@@ -109,12 +110,20 @@ class CommandHandler:
 		if len(args) == 2 and args[1].startswith('<@') and args[1].endswith('>'):
 			if not is_admin(user.id):
 				return "You don't have permission to view another user's keys."
-			mentioned_user_id = int(args[1][2:-1])
-			keys = sorted(self.db.get_user_keys(mentioned_user_id))
-			return f"Keys for <@{mentioned_user_id}>:\n- " + '\n- '.join(keys) if keys else constants.EMPTY_LIST
+			find_keys_for = args[1][2:-1]
+			# keys = sorted(self.db.get_user_keys(mentioned_user_id))
+			# return f"Keys for <@{mentioned_user_id}>:\n- " + '\n- '.join(keys) if keys else constants.EMPTY_LIST
+		else:
+			find_keys_for = user.id
 
-		keys = sorted(self.db.get_user_keys(user.id))
-		return '- ' + '\n- '.join(keys) if keys else constants.EMPTY_LIST
+		keys = sorted(self.db.get_user_keys(find_keys_for))
+		if len(keys) == 0:
+			return constants.EMPTY_LIST
+		
+		return_text = f'{constants.SAVED_MSGS} <@{str(find_keys_for)}>\n1/{str(len(keys)//10 + 1)}\n' +\
+						'- ' + '\n- '.join(keys) if keys else constants.EMPTY_LIST
+		# TODO: Add reactions
+		return return_text
 
 	def _handle_text_transform(self, command_type: str) -> Callable:
 		handlers = {
@@ -248,6 +257,96 @@ class DiscordBot:
 				return
 
 			await self.process_message(message)
+		
+		@self.client.event
+		async def on_reaction_add(reaction, user:discord.User):
+			if user == self.client.user:
+				return
+
+			message = reaction.message
+			if message.author != self.client.user:
+				return
+			
+			if message.created_at < datetime.now(timezone.utc) - timedelta(minutes=5):
+				return
+
+			if not message.content.strip().startswith(constants.SAVED_MSGS):
+				return
+
+			# Message format:
+			# Saved messages for: <@userid>
+			# Pageno/total
+			# <content>
+
+			message_lines = message.content.strip().split('\n')
+			numbers = re.findall(r'\d+', message_lines[0]) # Should only contain 1 element
+			if len(numbers) != 1:
+				print('Error updating saved message: Can\'t find author id in: ', message_lines[0], file=sys.stderr)
+				return
+
+			author = numbers[0]
+			try:
+				page_no = int(numbers[1].split('/')[0])
+			except ValueError:
+				print('Error updating saved message: Can\'t find page no in: ', message_lines[1], file=sys.stderr)
+				return
+			except:
+				print('Error updating saved message: Unknown error lmao' , file=sys.stderr)
+				return
+
+			user_saved = self.db_manager.get_user_keys(author)
+			pages = [user_saved[i:i+10] for i in range(0, len(user_saved, 10))]
+
+			match reaction:
+				case '▶️':
+					new_page = page_no + 1
+					if len(pages) >= new_page:
+						return
+					else:
+						new_content = f'{constants.SAVED_MSGS} <@{author}>\n' +\
+										f'{str(new_page)}/{str(len(pages))}\n' +\
+										'\n- '.join(pages[new_page])
+						await message.edit(content=new_content)
+
+				case '⏭️':
+					new_content = f'{constants.SAVED_MSGS} <@{author}>\n' +\
+									f'{str(len(pages))}/{str(len(pages))}\n' +\
+									'\n- '.join(pages[-1])
+					await message.edit(content=new_content)
+
+				case '◀️':
+					new_page = page_no - 1
+					if 0 > new_page:
+						return
+					else:
+						new_content = f'{constants.SAVED_MSGS} <@{author}>\n' +\
+										f'{str(new_page)}/{str(len(pages))}\n' +\
+										'\n- '.join(pages[new_page])
+						await message.edit(content=new_content)
+
+				case '⏮️':
+					new_content = f'{constants.SAVED_MSGS} <@{author}>\n' +\
+									f'0/{str(len(pages))}\n' +\
+									'\n- '.join(pages[0])
+					await message.edit(content=new_content)
+
+				case _:
+					return
+
+			try:
+				message.clear_reactions()
+				message.add_reaction('▶️')
+				message.add_reaction('⏭️')
+				message.add_reaction('◀️')
+				message.add_reaction('⏮️')
+			except discord.HTTPException:
+				print('Error removing reactions', file=sys.stderr)
+			except discord.Forbidden:
+				print('This shouldn\'t happen :)', file=syst.stderr)
+			except Exception as e:
+				print(e, file=syst.stderr)
+
+
 
 	async def process_message(self, message: discord.Message):
 		content = message.content.strip()
