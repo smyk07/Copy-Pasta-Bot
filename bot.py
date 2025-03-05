@@ -57,16 +57,16 @@ class CommandHandler:
 		self.db = db_manager
 		self.commands = {
 			'add': self._handle_add,
-			'add_o': lambda u, a, r: self._handle_add(u, a, r, True),
+			'add_o': lambda u, a, r, m: self._handle_add(u, a, r, True),
 			'saved': self._handle_saved,
 			'delete': self._handle_delete,
 			'delete_me': self._handle_delete_me,
-			'rename': lambda u, a, r: self._handle_rename(u, a, False),
-			'rename_o': lambda u, a, r: self._handle_rename(u, a, True),
+			'rename': lambda u, a, r, m: self._handle_rename(u, a, False),
+			'rename_o': lambda u, a, r, m: self._handle_rename(u, a, True),
 			'mock': self._handle_mock,
 			'steal': self._handle_steal,
 			'deepfry': self._handle_deepfry,
-			'help': lambda u, a, r: constants.HELP_TEXT,
+			'help': lambda u, a, r, m: constants.HELP_TEXT,
 			'blacklist_add': self._handle_blacklist_add,
 			'blacklist_remove': self._handle_blacklist_remove,
 			'clap': self._handle_text_transform('clap'),
@@ -75,9 +75,9 @@ class CommandHandler:
 			'copypasta': self._handle_text_transform('copypasta'),
 			'owo': self._handle_text_transform('owo'),
 			'stretch': self._handle_text_transform('stretch'),
-			'random': lambda u, a, r: self._handle_random(u),
+			'random': lambda u, a, r, m: self._handle_random(u),
 			'dream': self._handle_dream,
-			'search': lambda u, a, r: self._handle_search(u, a),
+			'search': lambda u, a, r, m: self._handle_search(u, a),
 		}
 
 	def _handle_add(self, user: discord.User, args: list, reply, overwrite=False) -> str:
@@ -106,7 +106,7 @@ class CommandHandler:
 			text += f'[{sticker.name}]({sticker.url}) '
 		return text
 
-	def _handle_saved(self, user: discord.User, args: list, reply) -> str:
+	def _handle_saved(self, user: discord.User, args: list, reply, message=None) -> str:
 		if len(args) == 2 and args[1].startswith('<@') and args[1].endswith('>'):
 			if not is_admin(user.id):
 				return "You don't have permission to view another user's keys."
@@ -120,8 +120,13 @@ class CommandHandler:
 		if len(keys) == 0:
 			return constants.EMPTY_LIST
 		
-		return_text = f'{constants.SAVED_MSGS} <@{str(find_keys_for)}>\n1/{str(len(keys)//10 + 1)}\n' +\
-						'- ' + '\n- '.join(keys) if keys else constants.EMPTY_LIST
+		if message.channel.permissions_for(message.channel.guild.me).add_reactions and \
+						message.channel.permissions_for(message.channel.guild.me).manage_messages:
+			return_text = f'{constants.SAVED_MSGS} <@{str(find_keys_for)}>\n1/{str(len(keys)//10 + 1)}\n' +\
+							'- ' + '\n- '.join(keys[:10]) if keys else constants.EMPTY_LIST
+		else:
+			return_text = f'{constants.SAVED_MSGS} <@{str(find_keys_for)}>\n' +\
+							'- ' + '\n- '.join(keys) if keys else constants.EMPTY_LIST
 		# TODO: Add reactions
 		return return_text
 
@@ -218,7 +223,7 @@ class CommandHandler:
 			return constants.WRONG_ARGS
 		return search.search(self.db.db, user.id, args[1])
 
-	async def handle_command(self, user: discord.User, cmd: str, reply=None) -> Optional[Union[str, discord.File]]:
+	async def handle_command(self, user: discord.User, cmd: str, reply=None, message=None) -> Optional[Union[str, discord.File]]:
 		if cmd.startswith(';;'):
 			cmd = cmd[2:]
 
@@ -228,7 +233,7 @@ class CommandHandler:
 
 		command = args[0]
 		if command in self.commands:
-			return await self.commands[command](user, args, reply) if asyncio.iscoroutinefunction(self.commands[command]) else self.commands[command](user, args, reply)
+			return await self.commands[command](user, args, reply, message) if asyncio.iscoroutinefunction(self.commands[command]) else self.commands[command](user, args, reply, message)
 		return None
 
 class DiscordBot:
@@ -294,7 +299,7 @@ class DiscordBot:
 				print('Error updating saved message: Unknown error lmao ' + str(e) , file=sys.stderr)
 				return
 
-			user_saved = self.db_manager.get_user_keys(author)
+			user_saved = sorted(self.db_manager.get_user_keys(author))
 			pages = [user_saved[i:i+10] for i in range(0, len(user_saved), 10)]
 
 			match reaction.emoji:
@@ -366,7 +371,8 @@ class DiscordBot:
 		response = await self.command_handler.handle_command(
 			message.author, 
 			message.content.strip(), 
-			reply=message.reference
+			reply=message.reference,
+			message=message
 		)
 
 		if response:
@@ -389,7 +395,8 @@ class DiscordBot:
 			else:
 				resp = await reply_to.reply(response)
 				if cmd == 'saved':
-					if discord.Permissions.add_reactions and discord.Permissions.manage_messages:
+					if message.channel.permissions_for(message.channel.guild.me).add_reactions and \
+						message.channel.permissions_for(message.channel.guild.me).manage_messages:
 						await resp.add_reaction('⏮️')
 						await resp.add_reaction('◀️')
 						await resp.add_reaction('▶️')
