@@ -290,6 +290,8 @@ class DiscordBot:
 				return
 
 			author = numbers[0]
+			if author != user.id:
+				return
 			try:
 				page_no = int(message_lines[1].split('/')[0]) - 1
 			except ValueError:
