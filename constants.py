@@ -50,3 +50,6 @@ REPLACE 		= r'(^|\S+\s+);;\S+;;(\s+\S+|$)' # ;;word;;
 BLACKLIST = []
 
 COMMAND_COOLDOWN = 2  # Cooldown of 2 seconds
+
+# Saved message
+SAVED_MSGS = 'Saved messages for:'
