@@ -286,32 +286,32 @@ class DiscordBot:
 
 			author = numbers[0]
 			try:
-				page_no = int(numbers[1].split('/')[0])
+				page_no = int(message_lines[1].split('/')[0]) - 1
 			except ValueError:
 				print('Error updating saved message: Can\'t find page no in: ', message_lines[1], file=sys.stderr)
 				return
-			except:
-				print('Error updating saved message: Unknown error lmao' , file=sys.stderr)
+			except Exception as e:
+				print('Error updating saved message: Unknown error lmao ' + str(e) , file=sys.stderr)
 				return
 
 			user_saved = self.db_manager.get_user_keys(author)
-			pages = [user_saved[i:i+10] for i in range(0, len(user_saved, 10))]
+			pages = [user_saved[i:i+10] for i in range(0, len(user_saved), 10)]
 
-			match reaction:
+			match reaction.emoji:
 				case '▶️':
 					new_page = page_no + 1
-					if len(pages) >= new_page:
+					if len(pages) <= new_page:
 						return
 					else:
 						new_content = f'{constants.SAVED_MSGS} <@{author}>\n' +\
-										f'{str(new_page)}/{str(len(pages))}\n' +\
-										'\n- '.join(pages[new_page])
+										f'{str(new_page+1)}/{str(len(pages))}\n' +\
+										'- ' + '\n- '.join(pages[new_page])
 						await message.edit(content=new_content)
 
 				case '⏭️':
 					new_content = f'{constants.SAVED_MSGS} <@{author}>\n' +\
 									f'{str(len(pages))}/{str(len(pages))}\n' +\
-									'\n- '.join(pages[-1])
+									'- ' + '\n- '.join(pages[-1])
 					await message.edit(content=new_content)
 
 				case '◀️':
@@ -320,25 +320,25 @@ class DiscordBot:
 						return
 					else:
 						new_content = f'{constants.SAVED_MSGS} <@{author}>\n' +\
-										f'{str(new_page)}/{str(len(pages))}\n' +\
-										'\n- '.join(pages[new_page])
+										f'{str(new_page+1)}/{str(len(pages))}\n' +\
+										'- ' + '\n- '.join(pages[new_page])
 						await message.edit(content=new_content)
 
 				case '⏮️':
 					new_content = f'{constants.SAVED_MSGS} <@{author}>\n' +\
 									f'0/{str(len(pages))}\n' +\
-									'\n- '.join(pages[0])
+									'- ' + '\n- '.join(pages[0])
 					await message.edit(content=new_content)
 
 				case _:
 					return
 
 			try:
-				message.clear_reactions()
-				message.add_reaction('▶️')
-				message.add_reaction('⏭️')
-				message.add_reaction('◀️')
-				message.add_reaction('⏮️')
+				await message.clear_reactions()
+				await message.add_reaction('⏮️')
+				await message.add_reaction('◀️')
+				await message.add_reaction('▶️')
+				await message.add_reaction('⏭️')
 			except discord.HTTPException:
 				print('Error removing reactions', file=sys.stderr)
 			except discord.Forbidden:
@@ -387,7 +387,13 @@ class DiscordBot:
 				# Always reply to the command message for error responses
 				await message.reply("## Fuck me! Keep it under the 2k character limit of Discord.")
 			else:
-				await reply_to.reply(response)
+				resp = await reply_to.reply(response)
+				if cmd == 'saved':
+					if discord.Permissions.add_reactions and discord.Permissions.manage_messages:
+						await resp.add_reaction('⏮️')
+						await resp.add_reaction('◀️')
+						await resp.add_reaction('▶️')
+						await resp.add_reaction('⏭️')
 		else:
 			print("Unhandled response type:", type(response))
 
