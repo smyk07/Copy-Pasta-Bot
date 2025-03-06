@@ -56,19 +56,19 @@ class CommandHandler:
 	def __init__(self, db_manager: DatabaseManager):
 		self.db = db_manager
 		self.commands = {
-			'add': self._handle_add,
+			'add': lambda u, a, r, m: self._handle_add(u, a, r),
 			'add_o': lambda u, a, r, m: self._handle_add(u, a, r, True),
-			'saved': self._handle_saved,
-			'delete': self._handle_delete,
-			'delete_me': self._handle_delete_me,
+			'saved': lambda u, a, r, m: self._handle_saved(u, a, m),
+			'delete': lambda u, a, r, m: self._handle_delete(u, a, r),
+			'delete_me': lambda u, a, r, m: self._handle_delete_me(u, a, r),
 			'rename': lambda u, a, r, m: self._handle_rename(u, a, False),
 			'rename_o': lambda u, a, r, m: self._handle_rename(u, a, True),
-			'mock': self._handle_mock,
-			'steal': self._handle_steal,
-			'deepfry': self._handle_deepfry,
+			'mock': lambda u, a, r, m: self._handle_mock(u, a, r),
+			'steal': lambda u, a, r, m: self._handle_steal(u, a, r),
+			'deepfry': lambda u, a, r, m: self._handle_deepfry(u, a, r),
 			'help': lambda u, a, r, m: constants.HELP_TEXT,
-			'blacklist_add': self._handle_blacklist_add,
-			'blacklist_remove': self._handle_blacklist_remove,
+			'blacklist_add': lambda u, a, r, m: self._handle_blacklist_add(u, a, r),
+			'blacklist_remove': lambda u, a, r, m: self._handle_blacklist_remove(u, a, r),
 			'clap': self._handle_text_transform('clap'),
 			'zalgo': self._handle_text_transform('zalgo'),
 			'forbesify': self._handle_text_transform('forbesify'),
@@ -76,7 +76,7 @@ class CommandHandler:
 			'owo': self._handle_text_transform('owo'),
 			'stretch': self._handle_text_transform('stretch'),
 			'random': lambda u, a, r, m: self._handle_random(u),
-			'dream': self._handle_dream,
+			'dream': lambda u, a, r, m: self._handle_dream(u, a, r),
 			'search': lambda u, a, r, m: self._handle_search(u, a),
 		}
 
@@ -106,7 +106,7 @@ class CommandHandler:
 			text += f'[{sticker.name}]({sticker.url}) '
 		return text
 
-	def _handle_saved(self, user: discord.User, args: list, reply, message=None) -> str:
+	def _handle_saved(self, user: discord.User, args: list, message=None) -> str:
 		if len(args) == 2 and args[1].startswith('<@') and args[1].endswith('>'):
 			if not is_admin(user.id):
 				return "You don't have permission to view another user's keys."
@@ -120,14 +120,15 @@ class CommandHandler:
 		if len(keys) == 0:
 			return constants.EMPTY_LIST
 		
-		if message.channel.permissions_for(message.channel.guild.me).add_reactions and \
-						message.channel.permissions_for(message.channel.guild.me).manage_messages:
-			return_text = f'{constants.SAVED_MSGS} <@{str(find_keys_for)}>\n1/{str(len(keys)//10 + 1)}\n' +\
-							'- ' + '\n- '.join(keys[:10]) if keys else constants.EMPTY_LIST
-		else:
-			return_text = f'{constants.SAVED_MSGS} <@{str(find_keys_for)}>\n' +\
+		return_text = f'{constants.SAVED_MSGS} <@{str(find_keys_for)}>\n' +\
 							'- ' + '\n- '.join(keys) if keys else constants.EMPTY_LIST
-		# TODO: Add reactions
+
+		if isinstance(message.channel, discord.TextChannel) or isinstance(message.channel, discord.VoiceChannel):
+			if message.channel.permissions_for(message.channel.guild.me).add_reactions and \
+						message.channel.permissions_for(message.channel.guild.me).manage_messages:
+				return_text = f'{constants.SAVED_MSGS} <@{str(find_keys_for)}>\n1/{str(len(keys)//10 + 1)}\n' +\
+								'- ' + '\n- '.join(keys[:10]) if keys else constants.EMPTY_LIST
+
 		return return_text
 
 	def _handle_text_transform(self, command_type: str) -> Callable:
@@ -397,12 +398,13 @@ class DiscordBot:
 			else:
 				resp = await reply_to.reply(response)
 				if cmd == 'saved':
-					if message.channel.permissions_for(message.channel.guild.me).add_reactions and \
-						message.channel.permissions_for(message.channel.guild.me).manage_messages:
-						await resp.add_reaction('⏮️')
-						await resp.add_reaction('◀️')
-						await resp.add_reaction('▶️')
-						await resp.add_reaction('⏭️')
+					if isinstance(message.channel, discord.TextChannel) or isinstance(message.channel, discord.VoiceChannel):
+						if message.channel.permissions_for(message.channel.guild.me).add_reactions and \
+							message.channel.permissions_for(message.channel.guild.me).manage_messages:
+							await resp.add_reaction('⏮️')
+							await resp.add_reaction('◀️')
+							await resp.add_reaction('▶️')
+							await resp.add_reaction('⏭️')
 		else:
 			print("Unhandled response type:", type(response))
 
