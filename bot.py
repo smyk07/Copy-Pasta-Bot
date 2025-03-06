@@ -65,7 +65,6 @@ class CommandHandler:
 			'rename_o': lambda u, a, r, m: self._handle_rename(u, a, True),
 			'mock': lambda u, a, r, m: self._handle_mock(u, a, r),
 			'steal': lambda u, a, r, m: self._handle_steal(u, a, r),
-			'deepfry': lambda u, a, r, m: self._handle_deepfry(u, a, r),
 			'help': lambda u, a, r, m: constants.HELP_TEXT,
 			'blacklist_add': lambda u, a, r, m: self._handle_blacklist_add(u, a, r),
 			'blacklist_remove': lambda u, a, r, m: self._handle_blacklist_remove(u, a, r),
@@ -76,8 +75,10 @@ class CommandHandler:
 			'owo': self._handle_text_transform('owo'),
 			'stretch': self._handle_text_transform('stretch'),
 			'random': lambda u, a, r, m: self._handle_random(u),
-			'dream': lambda u, a, r, m: self._handle_dream(u, a, r),
 			'search': lambda u, a, r, m: self._handle_search(u, a),
+
+			'deepfry': lambda u, a, r, m: self._handle_deepfry(u, a, r),
+			'dream': lambda u, a, r, m: self._handle_dream(u, a, r)
 		}
 
 	def _handle_add(self, user: discord.User, args: list, reply, overwrite=False) -> str:
@@ -234,7 +235,10 @@ class CommandHandler:
 
 		command = args[0]
 		if command in self.commands:
-			return await self.commands[command](user, args, reply, message) if asyncio.iscoroutinefunction(self.commands[command]) else self.commands[command](user, args, reply, message)
+			if command in ['dream', 'deepfry']:
+				return await self.commands[command](user, args, reply, message)
+			else:
+				return self.commands[command](user, args, reply, message)
 		return None
 
 class DiscordBot:
@@ -270,7 +274,13 @@ class DiscordBot:
 				return
 
 			message = reaction.message
+
+			if not message.channel.permissions_for(message.channel.guild.me).manage_messages or \
+				not message.channel.permissions_for(message.channel.guild.me).add_reactions:
+				return
+
 			if message.author != self.client.user:
+				await reaction.remove(user)
 				return
 			
 			if message.created_at < datetime.now(timezone.utc) - timedelta(minutes=5):
@@ -292,6 +302,7 @@ class DiscordBot:
 
 			author = numbers[0]
 			if author != str(user.id):
+				await reaction.remove(user)
 				return
 			try:
 				page_no = int(message_lines[1].split('/')[0]) - 1
@@ -309,6 +320,7 @@ class DiscordBot:
 				case '▶️':
 					new_page = page_no + 1
 					if len(pages) <= new_page:
+						await reaction.remove(user)
 						return
 					else:
 						new_content = f'{constants.SAVED_MSGS} <@{author}>\n' +\
@@ -325,6 +337,7 @@ class DiscordBot:
 				case '◀️':
 					new_page = page_no - 1
 					if 0 > new_page:
+						await reaction.remove(user)
 						return
 					else:
 						new_content = f'{constants.SAVED_MSGS} <@{author}>\n' +\
@@ -339,20 +352,22 @@ class DiscordBot:
 					await message.edit(content=new_content)
 
 				case _:
+					await reaction.remove(user)
 					return
 
 			try:
-				await message.clear_reactions()
-				await message.add_reaction('⏮️')
-				await message.add_reaction('◀️')
-				await message.add_reaction('▶️')
-				await message.add_reaction('⏭️')
+				# await message.clear_reactions()
+				# await message.add_reaction('⏮️')
+				# await message.add_reaction('◀️')
+				# await message.add_reaction('▶️')
+				# await message.add_reaction('⏭️')
+				await reaction.remove(user)
 			except discord.HTTPException:
 				print('Error removing reactions', file=sys.stderr)
 			except discord.Forbidden:
-				print('This shouldn\'t happen :)', file=syst.stderr)
+				print('This shouldn\'t happen :)', file=sys.stderr)
 			except Exception as e:
-				print(e, file=syst.stderr)
+				print(e, file=sys.stderr)
 
 
 
