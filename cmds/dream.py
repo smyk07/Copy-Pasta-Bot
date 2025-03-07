@@ -40,37 +40,37 @@ async def handle_dream_command(user, args, message=None):
 				prompt = prompt.replace("-i2v", "").replace("--image-to-video", "")
 			prompt = prompt.strip()
 		
+		# Determine current generation type - combine video and image-to-video into "video"
+		current_generation_type = "video" if (is_video or is_image_to_video) else "image"
+		
 		# Check user permissions
 		user_id = user.id
 		current_time = time.time()
 
 		# Check if user has permission to use the command at all
 		if user_id not in do_not_push.ADMINS:
-			# Check for cooldowns
-			if user_id in user_cooldowns:
-				cooldown_info = user_cooldowns[user_id]
-				generation_type = cooldown_info["type"]
-				last_used = cooldown_info["timestamp"]
-				
-				# Different cooldown periods based on generation type
-				if generation_type in ["video", "image-to-video"]:
-					cooldown_period = 3600  # 1 hour in seconds
-				else:
-					cooldown_period = 300   # 5 minutes in seconds
-					
+			# Get cooldown periods based on generation type
+			if current_generation_type == "video":
+				cooldown_period = 300
+			else:
+				cooldown_period = 60
+			
+			# Check for cooldowns for the specific generation type they're trying to use
+			if user_id in user_cooldowns and current_generation_type in user_cooldowns[user_id]:
+				last_used = user_cooldowns[user_id][current_generation_type]
 				time_elapsed = current_time - last_used
 				time_remaining = cooldown_period - time_elapsed
 				
 				if time_remaining > 0:
 					minutes_remaining = math.ceil(time_remaining / 60)
-					return f"You're on cooldown for {minutes_remaining} more minute{'s' if minutes_remaining > 1 else ''}. Please try again later."
+					generation_display = "video" if current_generation_type == "video" else "image"
+					return f"You're on cooldown for {generation_display} generation for {minutes_remaining} more minute{'s' if minutes_remaining > 1 else ''}. Please try again later."
 			
-			# If we reach here, set the current cooldown type
-			generation_type = "image-to-video" if is_image_to_video else ("video" if is_video else "image")
-			user_cooldowns[user_id] = {
-				"timestamp": current_time,
-				"type": generation_type
-			}
+			# If we reach here, update the cooldown for the specific type they're using
+			if user_id not in user_cooldowns:
+				user_cooldowns[user_id] = {}
+			
+			user_cooldowns[user_id][current_generation_type] = current_time
 		
 		def upload_image_to_0x0(image_bytes):
 			try:
@@ -128,9 +128,11 @@ async def handle_dream_command(user, args, message=None):
 		# Initialize Luma AI client with auth_token
 		client = LumaAI(auth_token=do_not_push.LUMA_API_KEY)
 		
+		# Get specific generation type for display purposes
+		display_generation_type = "image-to-video" if is_image_to_video else ("video" if is_video else "image")
+		
 		# Initial response to indicate we're working on it
-		generation_type = "image-to-video" if is_image_to_video else ("video" if is_video else "image")
-		initial_response = f"Creating {generation_type} for prompt: '{prompt}'... This might take a few minutes."
+		initial_response = f"Creating {display_generation_type} for prompt: '{prompt}'... This might take a few minutes."
 		
 		# Create the generation request based on type
 		if is_image_to_video:
@@ -170,7 +172,7 @@ async def handle_dream_command(user, args, message=None):
 			if generation.state == "completed":
 				completed = True
 			elif generation.state == "failed":
-				return f"{generation_type.capitalize()} generation failed: {generation.failure_reason}"
+				return f"{display_generation_type.capitalize()} generation failed: {generation.failure_reason}"
 			
 			# Wait before checking again (longer interval for videos)
 			polling_interval = 5 if (is_video or is_image_to_video) else 3
@@ -178,7 +180,7 @@ async def handle_dream_command(user, args, message=None):
 			polling_count += 1
 			
 		if not completed:
-			return f"{generation_type.capitalize()} generation timed out. Please try again later."
+			return f"{display_generation_type.capitalize()} generation timed out. Please try again later."
 		
 		# Get the media URL and appropriate file extension
 		if is_video or is_image_to_video:
@@ -201,7 +203,7 @@ async def handle_dream_command(user, args, message=None):
 		discord_file = discord.File(
 			file_path,
 			filename=discord_filename,
-			description=f"Dream {generation_type} completed for '{prompt}'"
+			description=f"Dream {display_generation_type} completed for '{prompt}'"
 		)
 		
 		return discord_file

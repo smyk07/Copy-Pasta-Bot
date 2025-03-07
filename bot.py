@@ -142,7 +142,7 @@ class CommandHandler:
 			'stretch': stretch.handle_stretch_command
 		}
 
-		def handler(user: discord.User, args: list, reply) -> str:
+		def handler(user: discord.User, args: list, reply, message=None) -> str:
 			if reply is None:
 				return "You need to reply to a message to use this command."
 			return handlers[command_type](reply)
