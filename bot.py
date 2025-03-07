@@ -280,9 +280,8 @@ class DiscordBot:
 				return
 
 			if message.author != self.client.user:
-				await reaction.remove(user)
 				return
-			
+
 			if message.created_at < datetime.now(timezone.utc) - timedelta(minutes=5):
 				return
 
@@ -413,13 +412,14 @@ class DiscordBot:
 			else:
 				resp = await reply_to.reply(response)
 				if cmd == 'saved':
-					if isinstance(message.channel, discord.TextChannel) or isinstance(message.channel, discord.VoiceChannel):
-						if message.channel.permissions_for(message.channel.guild.me).add_reactions and \
-							message.channel.permissions_for(message.channel.guild.me).manage_messages:
-							await resp.add_reaction('⏮️')
-							await resp.add_reaction('◀️')
-							await resp.add_reaction('▶️')
-							await resp.add_reaction('⏭️')
+					if response.strip().startswith(constants.SAVED_MSGS):
+						if isinstance(message.channel, discord.TextChannel) or isinstance(message.channel, discord.VoiceChannel):
+							if message.channel.permissions_for(message.channel.guild.me).add_reactions and \
+								message.channel.permissions_for(message.channel.guild.me).manage_messages:
+								await resp.add_reaction('⏮️')
+								await resp.add_reaction('◀️')
+								await resp.add_reaction('▶️')
+								await resp.add_reaction('⏭️')
 		else:
 			print("Unhandled response type:", type(response))
 
