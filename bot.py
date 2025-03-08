@@ -75,7 +75,7 @@ class CommandHandler:
 			'copypasta': self._handle_text_transform('copypasta'),
 			'owo': self._handle_text_transform('owo'),
 			'stretch': self._handle_text_transform('stretch'),
-			'random': lambda u, a, r, m: self._handle_random(u),
+			'random': lambda u, a, r, m: self._handle_random(u, a),
 			'search': lambda u, a, r, m: self._handle_search(u, a),
 			'check_version': lambda u, a, r, m: self._handle_check_version(u),
 
@@ -219,8 +219,12 @@ class CommandHandler:
 		constants.BLACKLIST.remove(user_id_to_remove)
 		return f"User <@{user_id_to_remove}> has been removed from the blacklist."
 
-	def _handle_random(self, user: discord.User) -> str:
-		return random_key.random_key(self.db.db, user.id)
+	def _handle_random(self, user: discord.User, args:list) -> str:
+		if len(args) != 1 and len(args) != 2:
+			return constants.WRONG_ARGS
+		
+		search_term = args[1] if len(args) == 2 else None
+		return random_key.random_key(self.db.db, user.id, search_term)
 
 	def _handle_search(self, user: discord.User, args: list) -> str:
 		if len(args) != 2:
