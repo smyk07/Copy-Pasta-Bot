@@ -9,6 +9,7 @@ from sqlitedict import SqliteDict
 from cmds import *
 import sys
 from datetime import datetime, timedelta, timezone
+import subprocess
 
 sys.path.append(os.path.basename(__file__))
 
@@ -76,6 +77,7 @@ class CommandHandler:
 			'stretch': self._handle_text_transform('stretch'),
 			'random': lambda u, a, r, m: self._handle_random(u),
 			'search': lambda u, a, r, m: self._handle_search(u, a),
+			'check_version': lambda u, a, r, m: self._handle_check_version(u),
 
 			'deepfry': lambda u, a, r, m: self._handle_deepfry(u, a, r),
 			'dream': lambda u, a, r, m: self._handle_dream(u, a, r)
@@ -240,6 +242,14 @@ class CommandHandler:
 			else:
 				return self.commands[command](user, args, reply, message)
 		return None
+	
+	def _handle_check_version(self, user):
+		if is_admin(user.id):
+			ret_str = f'Commit hash: {subprocess.check_output(['git', 'rev-parse', '--short', 'HEAD']).decode('ascii').strip()}'
+			ret_str += '\n\n\n'
+			ret_str += subprocess.check_output(['git', 'status']).decode('ascii').strip()
+
+			return ret_str
 
 class DiscordBot:
 	def __init__(self, token: str):
