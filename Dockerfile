@@ -12,8 +12,10 @@ RUN mkdir -p /bot/db && \
     apt-get install -y --no-install-recommends ffmpeg libsm6 libxext6 && \
     apt-get clean && \
     rm -rf /var/lib/apt/lists/*
+RUN mkdir -p /bot/cmds
 
 COPY --from=builder /root/.local/lib/python3.12/site-packages /usr/local/lib/python3.12/site-packages
-COPY *.py .
+COPY *.py ./
+COPY ./cmds/* ./cmds/
 
 CMD ["python", "bot.py"]
