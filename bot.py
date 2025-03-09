@@ -57,8 +57,8 @@ class CommandHandler:
 	def __init__(self, db_manager: DatabaseManager):
 		self.db = db_manager
 		self.commands = {
-			'add': lambda u, a, r, m: self._handle_add(u, a, r),
-			'add_o': lambda u, a, r, m: self._handle_add(u, a, r, True),
+			'add': lambda u, a, r, m: self._handle_add(u, a, r, m),
+			'add_o': lambda u, a, r, m: self._handle_add(u, a, r, m, True),
 			'saved': lambda u, a, r, m: self._handle_saved(u, a, m),
 			'delete': lambda u, a, r, m: self._handle_delete(u, a, r),
 			'delete_me': lambda u, a, r, m: self._handle_delete_me(u, a, r),
@@ -83,16 +83,20 @@ class CommandHandler:
 			'dream': lambda u, a, r, m: self._handle_dream(u, a, r)
 		}
 
-	def _handle_add(self, user: discord.User, args: list, reply, overwrite=False) -> str:
-		if len(args) == 1 or (len(args) == 2 and reply is None):
+	def _handle_add(self, user: discord.User, args: list, reply, message, overwrite=False) -> str:
+		if len(args) == 1:
 			return constants.WRONG_ARGS_ADD
 
 		if len(args) == 2:
-			if reply is None:
+			if reply is None and len(message.attachments) == 0:
 				return constants.WRONG_ARGS_ADD
 
-			original_message = reply.resolved.content.strip() or ''
-			original_message += self._get_attachments_text(reply.resolved)
+			if reply:
+				original_message = reply.resolved.content.strip() or ''
+				original_message += self._get_attachments_text(reply.resolved)
+			else:
+				original_message = ''
+			original_message += self._get_attachments_text(message)
 
 			if not original_message:
 				return constants.EMPTY_MESSAGE
