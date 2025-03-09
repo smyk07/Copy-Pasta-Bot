@@ -14,7 +14,7 @@ EMPTY_LIST_STEAL    = 'The user has not saved any text yet.'
 EMPTY_MESSAGE       = 'The message you replied to seems to be empty.'
 HELP_TEXT           = '''
 Start command with `;;`
-- **add <key> <message>** : Add text to db
+- **add <key> <message>** : Add text to db. You can also reply to a message or attach some media instead of <message>.
 - **add_o <key> <message>** : Add text but overwrite if exists
 - **help** : This message
 - **saved** : See all saved texts
