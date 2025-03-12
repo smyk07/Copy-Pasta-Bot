@@ -5,6 +5,5 @@ services:
       dockerfile: Dockerfile
     container_name: CopyPastaBot
     volumes:
-      - .:/bot
       - ./db:/bot/db
     restart: unless-stopped
