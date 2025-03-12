@@ -28,7 +28,10 @@ Start command with `;;`
 
 Usage ;;key;;
 
-Meme Commands: (work only when you reply to a text or an image)
+Meme Commands:
+- **roast** : Roast a user. Usage `;;roast @user`
+
+(work only when you reply to a text or an image)
 - **mock** : Mock a message
 - **clap** : Clap between words
 - **zalgo** : Add zalgo text effects
@@ -37,7 +40,6 @@ Meme Commands: (work only when you reply to a text or an image)
 - **copypasta** : Generate copypasta text from a message
 - **forbesify** : Convert text to...
 - **stretch** : Streeeeech aaaaa teeeext
-- **dream** : Generate an image from Luma AI
 
 Usage: ;;command
 '''
