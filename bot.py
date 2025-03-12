@@ -77,7 +77,6 @@ class CommandHandler:
 			'stretch': self._handle_text_transform('stretch'),
 			'random': lambda u, a, r, m: self._handle_random(u, a),
 			'search': lambda u, a, r, m: self._handle_search(u, a),
-			'check_version': lambda u, a, r, m: self._handle_check_version(u),
 
 			'deepfry': lambda u, a, r, m: self._handle_deepfry(u, a, r),
 			'dream': lambda u, a, r, m: self._handle_dream(u, a, r)
@@ -250,14 +249,6 @@ class CommandHandler:
 			else:
 				return self.commands[command](user, args, reply, message)
 		return None
-	
-	def _handle_check_version(self, user):
-		if is_admin(user.id):
-			ret_str = f'Commit hash: {subprocess.check_output(['git', 'rev-parse', '--short', 'HEAD']).decode('ascii').strip()}'
-			ret_str += '\n\n\n'
-			ret_str += subprocess.check_output(['git', 'status']).decode('ascii').strip()
-
-			return ret_str
 
 class DiscordBot:
 	def __init__(self, token: str):
@@ -449,6 +440,8 @@ class DiscordBot:
 		finally:
 			# To avoid another data loss due to DB file getting deleted while bot is running
 			if not os.path.exists(constants.DB_NAME):
+				os.makedirs(os.path.dirname(constants.DB_NAME))
+				os.mknod(constants.DB_NAME)
 				backup_db = self.db_manager.copy_database(SqliteDict(constants.DB_NAME + '.bkp', autocommit=True))
 				backup_db.close()
 			self.db_manager.close()
