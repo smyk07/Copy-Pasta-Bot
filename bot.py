@@ -75,6 +75,7 @@ class CommandHandler:
 			'copypasta': self._handle_text_transform('copypasta'),
 			'owo': self._handle_text_transform('owo'),
 			'stretch': self._handle_text_transform('stretch'),
+			'roast': lambda u, a, r, m: self._handle_roast(u, a, r, m),
 			'random': lambda u, a, r, m: self._handle_random(u, a),
 			'search': lambda u, a, r, m: self._handle_search(u, a),
 
@@ -249,6 +250,12 @@ class CommandHandler:
 			else:
 				return self.commands[command](user, args, reply, message)
 		return None
+
+	def _handle_roast(self, user: discord.User, args: list, reply, message) -> str:
+		from cmds import roast
+		if len(message.mentions) == 0:
+			return "You need to mention someone to roast! Try ;;roast @username"
+		return roast.handle_roast_command(message)
 
 class DiscordBot:
 	def __init__(self, token: str):
