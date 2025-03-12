@@ -166,7 +166,7 @@ class CommandHandler:
 	def _handle_rename(self, user: discord.User, args: list, overwrite: bool) -> str:
 		if len(args) != 3:
 			return constants.WRONG_ARGS_DEL
-		status = rename_key.rename_key(self.db.db, user.id, args[1], args[2])
+		status = rename_key.rename_key(self.db.db, user.id, args[1], args[2], overwrite)
 		match status:
 			case 0: return constants.SUCCESSFUL
 			case -1: return constants.EMPTY_LIST
