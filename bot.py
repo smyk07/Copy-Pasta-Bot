@@ -189,7 +189,9 @@ class CommandHandler:
 		return await dream.handle_dream_command(user, args, message=reply)
 
 	def _handle_steal(self, user: discord.User, args: list, reply) -> str:
-		if len(args) not in {3, 4}:
+		if len(args) == 2 and '<@' in args[1]:
+			return constants.WRONG_ARGS_STEAL
+		elif len(args) not in {3, 4}:
 			return constants.WRONG_ARGS
 
 		steal_from = args[1]
