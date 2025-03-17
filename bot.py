@@ -66,7 +66,7 @@ class CommandHandler:
 			'rename_o': lambda u, a, r, m: self._handle_rename(u, a, True),
 			'mock': lambda u, a, r, m: self._handle_mock(u, a, r),
 			'steal': lambda u, a, r, m: self._handle_steal(u, a, r),
-			'help': lambda u, a, r, m: constants.HELP_TEXT,
+			'help': lambda u, a, r, m: self._handle_help(a),
 			'blacklist_add': lambda u, a, r, m: self._handle_blacklist_add(u, a, r),
 			'blacklist_remove': lambda u, a, r, m: self._handle_blacklist_remove(u, a, r),
 			'clap': self._handle_text_transform('clap'),
@@ -256,6 +256,18 @@ class CommandHandler:
 		if len(message.mentions) == 0:
 			return "You need to mention someone to roast! Try ;;roast @username"
 		return roast.handle_roast_command(message)
+
+	def _handle_help(self, args) -> str:
+		if len(args) != 2:
+			return constants.HELP_TEXT
+
+		match args[1].lower():
+			case 'copypasta':
+				return constants.HELP_TEXT_CP
+			case 'memes':
+				return constants.HELP_TEXT_MEMES
+			case _:
+				return constants.HELP_TEXT
 
 class DiscordBot:
 	def __init__(self, token: str):
