@@ -20,26 +20,40 @@ def load_roasts() -> list:
 		print(f"Error loading roasts: {e}")
 		return ["Error: Couldn't load roasts. Contact the bot owner."]
 
-def get_random_roast() -> str:
+def get_random_roast(num=1) -> str:
 	"""Get a random roast from the roasts file"""
 	roasts = load_roasts()
-	return random.choice(roasts)
+	return random.sample(roasts, num)
 
-def handle_roast_command(message: discord.Message) -> str:
+def handle_roast(message: discord.Message, bot_user: discord.ClientUser) -> str:
 	"""Handle the ;;roast command and return the response message"""
-	
+	no_mentions = False
+	bot_mention = False
+
 	# Check if there's a user mention in the message
 	if not message.mentions:
-		return "You need to mention someone to roast! Try ;;roast @username"
-	
-	# Get the first mentioned user
-	target_user = message.mentions[0]
-	
-	# Get a random roast
-	roast = get_random_roast()
-	
+		target_users = [message.author]
+		no_mentions = True
+
+	elif bot_user in message.mentions:
+		target_users = [message.author]
+		bot_mention = True
+
+	else:
+		target_users = message.mentions
+
+	# Get random roasts
+	roasts = get_random_roast(len(target_users))
+
 	# Format the response with the target user mention and the roast
 	# Using discord.utils.escape_markdown to preserve '*' for censoring 
-	response = f"{target_user.mention} {discord.utils.escape_markdown(roast)}"
-	
-	return response
+	response = ''
+	for i, user in enumerate(target_users):
+		response += f'{user.mention} {discord.utils.escape_markdown(roasts[i])}\n'
+
+	if no_mentions:
+		response += '\nTry reading `;;help` twice next time'
+	if bot_mention:
+		response += '\nWhy would I roast myself?'
+
+	return response.strip()

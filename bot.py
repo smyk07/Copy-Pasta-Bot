@@ -54,7 +54,7 @@ class DatabaseManager:
 		return new_db
 
 class CommandHandler:
-	def __init__(self, db_manager: DatabaseManager):
+	def __init__(self, db_manager: DatabaseManager, get_bot: Callable):
 		self.db = db_manager
 		self.commands = {
 			'add': lambda u, a, r, m: self._handle_add(u, a, r, m),
@@ -75,13 +75,14 @@ class CommandHandler:
 			'copypasta': self._handle_text_transform('copypasta'),
 			'owo': self._handle_text_transform('owo'),
 			'stretch': self._handle_text_transform('stretch'),
-			'roast': lambda u, a, r, m: self._handle_roast(u, a, r, m),
+			'roast': lambda u, a, r, m: roast.handle_roast(m, self.get_bot()),
 			'random': lambda u, a, r, m: self._handle_random(u, a),
 			'search': lambda u, a, r, m: self._handle_search(u, a),
 
 			'deepfry': lambda u, a, r, m: self._handle_deepfry(u, a, r),
 			'dream': lambda u, a, r, m: self._handle_dream(u, a, r)
 		}
+		self.get_bot = get_bot
 
 	def _handle_add(self, user: discord.User, args: list, reply, message, overwrite=False) -> str:
 		if len(args) == 1:
@@ -251,12 +252,6 @@ class CommandHandler:
 				return self.commands[command](user, args, reply, message)
 		return None
 
-	def _handle_roast(self, user: discord.User, args: list, reply, message) -> str:
-		from cmds import roast
-		if len(message.mentions) == 0:
-			return "You need to mention someone to roast! Try ;;roast @username"
-		return roast.handle_roast_command(message)
-
 	def _handle_help(self, args) -> str:
 		if len(args) != 2:
 			return constants.HELP_TEXT
@@ -276,8 +271,11 @@ class DiscordBot:
 		intents.message_content = True
 		self.client = discord.Client(intents=intents)
 		self.db_manager = DatabaseManager(constants.DB_NAME)
-		self.command_handler = CommandHandler(self.db_manager)
+		self.command_handler = CommandHandler(self.db_manager, self._get_user)
 		self.setup_events()
+
+	def _get_user(self):
+		return self.client.user
 
 	def setup_events(self):
 		@self.client.event
