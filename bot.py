@@ -388,15 +388,23 @@ class DiscordBot:
 
 	async def process_message(self, message: discord.Message):
 		content = message.content.strip()
-		if re.match(constants.REPLACE, content):
+		if re.search(constants.REPLACE, content):
 			await self.handle_replacement(message)
 		elif re.match(constants.COMMAND, content):
 			await self.handle_bot_command(message)
 
 	async def handle_replacement(self, message: discord.Message):
-		parts = message.content.strip().split(';;')
-		replaced_text = self.db_manager.retrieve_text(message.author.id, parts[1])
-		if replaced_text:
+		def get_text(match:re.Match)->str:
+			key = match.string[match.start()+2:match.end()-2]
+			replacement = self.db_manager.retrieve_text(message.author.id, key)
+			if replacement:
+				return replacement
+			return f';;{key};;'
+
+		replaced_text = re.sub(constants.REPLACE,
+				get_text,
+				message.content.strip()).strip()
+		if replaced_text != message.content.strip() and replaced_text != '':
 			target = message.reference.resolved if message.reference else message
 			await target.reply(replaced_text)
 

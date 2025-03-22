@@ -46,7 +46,8 @@ Usage: ;;command
 
 # REGEX
 COMMAND 		= r'^;;.' # commands preceded by ;;
-REPLACE 		= r'(^|\S+\s+);;\S+;;(\s+\S+|$)' # ;;word;;
+# REPLACE 		= r'(^|\S+\s+);;\S+;;(\s+\S+|$)' # ;;word;;
+REPLACE			= r';;\S+;;'
 
 # List of Blacklisted users
 BLACKLIST = []
