@@ -6,14 +6,24 @@ KEY_NOT_FOUND       = 'Key you specified does not exist.'
 SUCCESSFUL          = 'Success!'
 UNSUCCESSFUL        = 'Something went wrong :/'
 WRONG_ARGS          = 'You are using the command wrong. Please check `;;help`'
-WRONG_ARGS_ADD      = '`add <key> <value>` or `add <key>` and reply to a message'
+WRONG_ARGS_ADD      = '`add <key> <value>` or `add <key>` and reply to a message or add <key> and add an attachment'
 WRONG_ARGS_DEL      = '`delete <key>`'
+WRONG_ARGS_STEAL    = 'Sorry, we do not encourage human trafficking. Please mention a key to steal.'
 WRONG_USER_ID       = 'The user you tagged is either in the wrong position or wrongly formatted.'
 EMPTY_LIST          = 'You have not saved any text yet.'
 EMPTY_LIST_STEAL    = 'The user has not saved any text yet.'
 EMPTY_MESSAGE       = 'The message you replied to seems to be empty.'
 HELP_TEXT           = '''
-Start command with `;;`
+**Basic Usage**:
+`;;cmd` - to interact with the bot (modify keys, meme commands)
+`;;key;;` - to recall keys
+
+Save keys using `;;add <key> <value>` or `;;add <key>` and reply to a message/add attachment
+For detailed help try `;;help copypasta` or `;;help memes`
+'''
+
+HELP_TEXT_CP       = '''
+**Copypasta Commands:**
 - **add <key> <message>** : Add text to db. You can also reply to a message or attach some media instead of <message>.
 - **add_o <key> <message>** : Add text but overwrite if exists
 - **help** : This message
@@ -25,13 +35,10 @@ Start command with `;;`
 - **steal <user> <key> <new_key>**: Steal a key from the user. `new_key` is optional.
 - **random <term>** : `term` is optional. Send a random value from saved keys. If term is provided, it filters out keys without term in them.
 - **search** <key> : Search your keys for occurence of this key
+'''
 
-Usage ;;key;;
-
-Meme Commands:
-- **roast** : Roast a user. Usage `;;roast @user`
-
-(work only when you reply to a text or an image)
+HELP_TEXT_MEMES    = '''
+**Meme Commands:** (Reply to a message)
 - **mock** : Mock a message
 - **clap** : Clap between words
 - **zalgo** : Add zalgo text effects
@@ -40,9 +47,11 @@ Meme Commands:
 - **copypasta** : Generate copypasta text from a message
 - **forbesify** : Convert text to...
 - **stretch** : Streeeeech aaaaa teeeext
-
-Usage: ;;command
+- **roast <@user>** : Roast a user (No need to reply to message)
+- **dream <prompt>** :  Generate an image from Luma AI. (No need to reply to message). _The prompt and the generated image might be logged by Luma AI. The prompt and the generated image with user id are definitely logged by the bot for moderation purposes_
 '''
+
+SAVED_MSGS = 'Saved messages for:'
 
 # REGEX
 COMMAND 		= r'^;;.' # commands preceded by ;;
@@ -53,6 +62,3 @@ REPLACE			= r';;\S+;;'
 BLACKLIST = []
 
 COMMAND_COOLDOWN = 2  # Cooldown of 2 seconds
-
-# Saved message
-SAVED_MSGS = 'Saved messages for:'
