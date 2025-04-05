@@ -307,8 +307,8 @@ class Message:
 
 		# for i, embed in enumerate(message_obj.embeds):
 		# 	if 
-		if message_obj.embeds:
-			attachments += [embed.image.url for embed in message_obj.embeds if getattr(embed, attachment_type) != 'EmbedProxy()']
+		if message_obj.embeds and attachment_type != 'audio':
+			attachments += [getattr(embed, attachment_type).url for embed in message_obj.embeds if getattr(embed, attachment_type).__repr__() != 'EmbedProxy()']
 
 		# Checks for forwarded messages
 		if check_reference and message_obj.reference:
@@ -340,7 +340,7 @@ class DiscordBot:
 
 		@self.client.event
 		async def on_message(message: discord.Message):
-			if message.author == self.client.user:# or message.author.bot:
+			if message.author == self.client.user or message.author.bot:
 				return
 
 			if is_blacklisted(message.author.id):
