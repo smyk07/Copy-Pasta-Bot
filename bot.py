@@ -266,6 +266,60 @@ class CommandHandler:
 			case _:
 				return constants.HELP_TEXT
 
+class Message:
+	def __init__(self, message_obj:discord.Message):
+		self.message_obj = message_obj
+		self.content = self.get_content(message_obj) # populate self.content
+		self.images = self.get_attachments(message_obj, attachment_type='image', check_reference=True)
+		self.videos = self.get_attachments(message_obj, attachment_type='video', check_reference=True)
+		self.audios = self.get_attachments(message_obj, attachment_type='audio', check_reference=True)
+		pass
+	
+	def get_content(self, message_obj:discord.Message):
+		if message_obj.content != '': # Normal message
+			return message_obj.content.strip()
+		if len(message_obj.attachments) == 0:
+			if message_obj.reference: # Forwarded message
+				# return message_obj.reference.resolved.content.strip()
+				content = []
+				if message_obj.reference.resolved:
+					content += message_obj.reference.resolved.content.strip()
+				if message_obj.reference.cached_message:
+					content += message_obj.reference.cached_message.content.strip()
+				return '\n'.join(content)
+
+			if message_obj.embeds: # Embed message
+				content = []
+				for embed in message_obj.embeds:
+					try:
+						content.append(embed.content)
+					except AttributeError:
+						continue
+				return '\n'.join(content)
+	
+	def get_attachments(self, message_obj:discord.Message, attachment_type:str, check_reference:bool=False):
+		attachments = []
+		if not message_obj:
+			return attachments
+
+		if message_obj.attachments:
+			attachments += [attachment.url for attachment in message_obj.attachments if attachment.content_type[:5] == attachment_type]
+
+		# for i, embed in enumerate(message_obj.embeds):
+		# 	if 
+		if message_obj.embeds:
+			attachments += [embed.image.url for embed in message_obj.embeds if getattr(embed, attachment_type) != 'EmbedProxy()']
+
+		# Checks for forwarded messages
+		if check_reference and message_obj.reference:
+			try:
+				attachments += self.get_attachments(message_obj.reference.resolved, attachment_type=attachment_type, check_reference=False)
+				attachments += self.get_attachments(message_obj.reference.cached_message, attachment_type=attachment_type, check_reference=False)
+			except:
+				pass
+		
+		return attachments
+
 class DiscordBot:
 	def __init__(self, token: str):
 		self.token = token
@@ -286,14 +340,14 @@ class DiscordBot:
 
 		@self.client.event
 		async def on_message(message: discord.Message):
-			if message.author == self.client.user or message.author.bot:
+			if message.author == self.client.user:# or message.author.bot:
 				return
 
 			if is_blacklisted(message.author.id):
 				if message.content.strip().startswith(';;'):
 					await message.reply("You are blacklisted from using this bot.")
 				return
-
+			Message(message)
 			await self.process_message(message)
 		
 		@self.client.event
