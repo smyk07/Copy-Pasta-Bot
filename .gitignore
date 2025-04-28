@@ -4,3 +4,4 @@ mysqlite.db
 .git/
 __pycache__/
 ./cmds/__pycache__/
+db/

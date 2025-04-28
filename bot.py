@@ -9,7 +9,6 @@ from sqlitedict import SqliteDict
 from cmds import *
 import sys
 from datetime import datetime, timedelta, timezone
-import subprocess
 
 sys.path.append(os.path.basename(__file__))
 
@@ -76,6 +75,7 @@ class CommandHandler:
 			'owo': self._handle_text_transform('owo'),
 			'stretch': self._handle_text_transform('stretch'),
 			'roast': lambda u, a, r, m: roast.handle_roast(m, self.get_bot()),
+			'flirt': lambda u, a, r, m: self._handle_flirt(u, a, r, m),
 			'random': lambda u, a, r, m: self._handle_random(u, a),
 			'search': lambda u, a, r, m: self._handle_search(u, a),
 
@@ -179,6 +179,12 @@ class CommandHandler:
 		if reply is None:
 			return "You need to reply to a message to use this command."
 		return mock.handle_mock_command(reply)
+	
+	def _handle_flirt(self, user: discord.User, args: list, reply, message) -> str:
+		from cmds import flirt
+		if len(message.mentions) == 0:
+			return "You need to mention someone to flirt with! Try ;;flirt @username"
+		return flirt.handle_flirt_command(message)
 
 	async def _handle_deepfry(self, user: discord.User, args: list, reply) -> Union[str, discord.File]:
 		if reply is None:
@@ -278,11 +284,27 @@ class DiscordBot:
 
 	def _get_user(self):
 		return self.client.user
+	
+	async def update_status(self):
+		while True:
+			try:
+				total_users = sum(guild.member_count for guild in self.client.guilds)
+				total_servers = len(self.client.guilds)
+				status = f'Serving {total_users}+ users in {total_servers} servers'
+				await self.client.change_presence(activity=discord.Activity(
+					type=discord.ActivityType.custom,
+					name=status,
+					state=status
+				))
+			except Exception as e:
+				print(f"Error updating status: {e}", file=sys.stderr)
+			await asyncio.sleep(86400)
 
 	def setup_events(self):
 		@self.client.event
 		async def on_ready():
 			print(f'Logged in as {self.client.user}')
+			asyncio.create_task(self.update_status())
 
 		@self.client.event
 		async def on_message(message: discord.Message):
