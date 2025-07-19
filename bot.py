@@ -9,6 +9,7 @@ from sqlitedict import SqliteDict
 from cmds import *
 import sys
 from datetime import datetime, timedelta, timezone
+
 import subprocess
 from DatabaseManager import DatabaseManager
 from Message import Message
@@ -93,6 +94,111 @@ class CommandHandler:
 	# 		return "You need to reply to a message with an image to use this command."
 	# 	return await deepfry.handle_deepfry_command(reply)
 
+	def _handle_text_transform(self, command_type: str) -> Callable:
+		handlers = {
+			'clap': clap.handle_clap_command,
+			'zalgo': zalgo.handle_zalgo_command,
+			'forbesify': forbesify.handle_forbesify_command,
+			'copypasta': copypasta.handle_copypasta_command,
+			'owo': owo.handle_owo_command,
+			'stretch': stretch.handle_stretch_command
+		}
+
+		def handler(user: discord.User, args: list, reply, message=None) -> str:
+			if reply is None:
+				return "You need to reply to a message to use this command."
+			return handlers[command_type](reply)
+
+		return handler
+
+	def _handle_delete(self, user: discord.User, args: list, reply) -> str:
+		if len(args) == 1:
+			return constants.WRONG_ARGS_DEL
+		return constants.SUCCESSFUL if self.db.delete_key(user.id, args[1]) else constants.KEY_NOT_FOUND
+
+	def _handle_delete_me(self, user: discord.User, args: list, reply) -> str:
+		return constants.SUCCESSFUL if delete_me.delete_me(self.db.db, user.id) else constants.EMPTY_LIST
+
+	def _handle_rename(self, user: discord.User, args: list, overwrite: bool) -> str:
+		if len(args) != 3:
+			return constants.WRONG_ARGS_DEL
+		status = rename_key.rename_key(self.db.db, user.id, args[1], args[2], overwrite)
+		match status:
+			case 0: return constants.SUCCESSFUL
+			case -1: return constants.EMPTY_LIST
+			case -2: return constants.KEY_NOT_FOUND
+			case -3: return constants.KEY_EXISTS_RENAME if not overwrite else constants.UNSUCCESSFUL
+			case _: return constants.UNSUCCESSFUL
+
+	def _handle_mock(self, user: discord.User, args: list, reply) -> Union[str, discord.File]:
+		if reply is None:
+			return "You need to reply to a message to use this command."
+		return mock.handle_mock_command(reply)
+	
+	def _handle_flirt(self, user: discord.User, args: list, reply, message) -> str:
+		from cmds import flirt
+		if len(message.mentions) == 0:
+			return "You need to mention someone to flirt with! Try ;;flirt @username"
+		return flirt.handle_flirt_command(message)
+
+	async def _handle_deepfry(self, user: discord.User, args: list, reply) -> Union[str, discord.File]:
+		if reply is None:
+			return "You need to reply to a message with an image to use this command."
+		return await deepfry.handle_deepfry_command(reply)
+
+	async def _handle_dream(self, user: discord.User, args: list, reply) -> Union[str, discord.File, None]:
+		return await dream.handle_dream_command(user, args, message=reply)
+
+	def _handle_steal(self, user: discord.User, args: list, reply) -> str:
+		if len(args) == 2 and '<@' in args[1]:
+			return constants.WRONG_ARGS_STEAL
+		elif len(args) not in {3, 4}:
+			return constants.WRONG_ARGS
+
+		steal_from = args[1]
+		if not steal_from.startswith('<@') or not steal_from.endswith('>'):
+			return constants.WRONG_USER_ID
+
+		steal_from = steal_from[2:-1]
+		new_key = args[3] if len(args) == 4 else None
+		return steal.steal(self.db.db, user.id, args[2], steal_from, new_key)
+
+	def _handle_blacklist_add(self, user: discord.User, args: list, reply) -> str:
+		if not is_admin(user.id):
+			return "You don't have permission to use this command."
+		if len(args) != 2 or not args[1].startswith('<@') or not args[1].endswith('>'):
+			return "Invalid user mention"
+		user_id_to_blacklist = int(args[1][2:-1])
+		if user_id_to_blacklist in do_not_push.ADMINS:
+			return "You cannot blacklist another admin."
+		if user_id_to_blacklist in constants.BLACKLIST:
+			return "User is already blacklisted."
+		constants.BLACKLIST.append(user_id_to_blacklist)
+		return f"User <@{user_id_to_blacklist}> has been blacklisted."
+
+	def _handle_blacklist_remove(self, user: discord.User, args: list, reply) -> str:
+		if not is_admin(user.id):
+			return "You don't have permission to use this command."
+		if len(args) != 2 or not args[1].startswith('<@') or not args[1].endswith('>'):
+			return "Invalid user mention"
+		user_id_to_remove = int(args[1][2:-1])
+		if user_id_to_remove not in constants.BLACKLIST:
+			return "User is not blacklisted."
+		constants.BLACKLIST.remove(user_id_to_remove)
+		return f"User <@{user_id_to_remove}> has been removed from the blacklist."
+
+	def _handle_random(self, user: discord.User, args:list) -> str:
+		if len(args) != 1 and len(args) != 2:
+			return constants.WRONG_ARGS
+		
+		search_term = args[1] if len(args) == 2 else None
+		return random_key.random_key(self.db.db, user.id, search_term)
+
+	def _handle_search(self, user: discord.User, args: list) -> str:
+		if len(args) != 2:
+			return constants.WRONG_ARGS
+		return search.search(self.db.db, user.id, args[1])
+
 	# async def _handle_dream(self, user: discord.User, args: list, reply) -> Union[str, discord.File, None]:
 	# 	return await dream.handle_dream_command(user, args, message=reply)
 
@@ -127,11 +233,27 @@ class DiscordBot:
 
 	def _get_user(self):
 		return self.client.user
+	
+	async def update_status(self):
+		while True:
+			try:
+				total_users = sum(guild.member_count for guild in self.client.guilds)
+				total_servers = len(self.client.guilds)
+				status = f'Serving {total_users}+ users in {total_servers} servers'
+				await self.client.change_presence(activity=discord.Activity(
+					type=discord.ActivityType.custom,
+					name=status,
+					state=status
+				))
+			except Exception as e:
+				print(f"Error updating status: {e}", file=sys.stderr)
+			await asyncio.sleep(86400)
 
 	def setup_events(self):
 		@self.client.event
 		async def on_ready():
 			print(f'Logged in as {self.client.user}')
+			asyncio.create_task(self.update_status())
 
 		@self.client.event
 		async def on_message(message: discord.Message):

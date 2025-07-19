@@ -4,6 +4,7 @@ mysqlite.db
 .git/
 __pycache__/
 ./cmds/__pycache__/
+
 ./db/
 .vscode/
 api_token.py
