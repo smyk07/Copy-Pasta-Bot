@@ -1,21 +1,25 @@
 from sqlitedict import SqliteDict
+import constants
+import DatabaseManager
 
-def rename_key(db:SqliteDict, user:str, key:str, new_key:str, overwrite:bool)->int:
-	user_db = db.get(user, None)
-	if not user_db:
-		return -1
-	
-	value = user_db.get(key, None)
+def _rename_key(db:DatabaseManager, user:str, key:str, new_key:str, overwrite:bool)->int:
+	user_keys = db.get_user_keys(user)
+	if not user_keys:
+		return constants.EMPTY_LIST
+
+	value = db.retrieve_text(user, key)
 	if not value:
-		return -2
-	
-	if user_db.get(new_key, None) and not overwrite:
-		return -3
+		return constants.KEY_NOT_FOUND
 
-	user_db[new_key] = value
-	del user_db[key]
+	if db.retrieve_text(user, new_key) and not overwrite:
+		return constants.KEY_EXISTS_RENAME
 
-	db[user] = user_db
+	db.store_text(user, new_key, value, overwrite)
+	db.delete_key(user, key)
 
-	return 0
-	
+	return constants.SUCCESSFUL
+
+def handle_rename(message: 'Message', db:DatabaseManager, overwrite: bool=False) -> str:
+	if len(message.args) != 3:
+		return constants.WRONG_ARGS_RENAME
+	return _rename_key(db, message.author.id, message.args[1], message.args[2], overwrite)

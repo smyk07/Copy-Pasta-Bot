@@ -1,15 +1,17 @@
 import os
 import random
 import discord
+import constants
+import Message
 
-def get_asset_path(filename: str) -> str:
+def _get_asset_path(filename: str) -> str:
 	root_dir = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 	return os.path.join(root_dir, 'assets', filename)
 
-def load_roasts() -> list:
+def _load_roasts() -> list:
 	"""Load roasts from the roasts.txt file"""
 	try:
-		with open(get_asset_path('roasts.txt'), 'r', encoding='utf-8') as file:
+		with open(_get_asset_path(constants.ROASTS_NAME), 'r', encoding='utf-8') as file:
 			# Filter out empty lines
 			roasts = [line.strip() for line in file if line.strip()]
 		return roasts
@@ -20,12 +22,12 @@ def load_roasts() -> list:
 		print(f"Error loading roasts: {e}")
 		return ["Error: Couldn't load roasts. Contact the bot owner."]
 
-def get_random_roast(num=1) -> str:
+def _get_random_roast(num=1) -> str:
 	"""Get a random roast from the roasts file"""
-	roasts = load_roasts()
+	roasts = _load_roasts()
 	return random.sample(roasts, num)
 
-def handle_roast(message: discord.Message, bot_user: discord.ClientUser) -> str:
+def roast(message: discord.Message, bot_user: discord.ClientUser) -> str:
 	"""Handle the ;;roast command and return the response message"""
 	no_mentions = False
 	bot_mention = False
@@ -43,7 +45,7 @@ def handle_roast(message: discord.Message, bot_user: discord.ClientUser) -> str:
 		target_users = message.mentions
 
 	# Get random roasts
-	roasts = get_random_roast(len(target_users))
+	roasts = _get_random_roast(len(target_users))
 
 	# Format the response with the target user mention and the roast
 	# Using discord.utils.escape_markdown to preserve '*' for censoring 
@@ -57,3 +59,25 @@ def handle_roast(message: discord.Message, bot_user: discord.ClientUser) -> str:
 		response += '\nWhy would I roast myself?'
 
 	return response.strip()
+
+def add_roast(message: Message) -> str:
+	if len(message.args) <= 1:
+		return constants.WRONG_ARGS
+	
+	roast = message.content[12:].strip()
+	roasts = _load_roasts()
+
+	if len(roasts) > 0 and roasts[0][:6] == 'Error:':
+		return constants.UNSUCCESSFUL
+	
+	if roast not in roasts:
+		roasts.append(roast)
+	
+	try:
+		with open(_get_asset_path(constants.ROASTS_NAME), 'w') as f:
+			f.write('\n'.join(roasts))
+		
+		return constants.SUCCESSFUL
+	except Exception as e:
+		print('Exception in `add_roast`: ', e)
+		return constants.UNSUCCESSFUL

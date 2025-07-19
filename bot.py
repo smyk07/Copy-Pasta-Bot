@@ -10,119 +10,68 @@ from cmds import *
 import sys
 from datetime import datetime, timedelta, timezone
 
+import subprocess
+from DatabaseManager import DatabaseManager
+from Message import Message
+
 sys.path.append(os.path.basename(__file__))
 
-def is_admin(user_id: int) -> bool:
+def is_admin(user_id:int):
 	return user_id in do_not_push.ADMINS
-
-def is_blacklisted(user_id: int) -> bool:
-	return user_id in constants.BLACKLIST
-class DatabaseManager:
-	def __init__(self, db_name: str):
-		self.db = SqliteDict(db_name, autocommit=True)
-
-	def store_text(self, user: str, key: str, value: str, overwrite=False) -> str:
-		user_db = self.db.get(user, {})
-		if key in user_db and not overwrite:
-			return constants.KEY_EXISTS_ADD
-		user_db[key] = value
-		self.db[user] = user_db
-		return constants.SUCCESSFUL
-
-	def retrieve_text(self, user: str, key: str) -> Optional[str]:
-		return self.db.get(user, {}).get(key)
-
-	def get_user_keys(self, user: str) -> list:
-		return list(self.db.get(user, {}).keys())
-
-	def close(self):
-		self.db.close()
-
-	def delete_key(self, user: str, key: str) -> bool:
-		user_db = self.db.get(user, {})
-		if key in user_db:
-			del user_db[key]
-			self.db[user] = user_db
-			return True
-		return False
-
-	def copy_database(self, new_db:SqliteDict):
-		for key in self.db.keys():
-			new_db[key] = self.db[key]
-
-		return new_db
 
 class CommandHandler:
 	def __init__(self, db_manager: DatabaseManager, get_bot: Callable):
 		self.db = db_manager
-		self.commands = {
-			'add': lambda u, a, r, m: self._handle_add(u, a, r, m),
-			'add_o': lambda u, a, r, m: self._handle_add(u, a, r, m, True),
-			'saved': lambda u, a, r, m: self._handle_saved(u, a, m),
-			'delete': lambda u, a, r, m: self._handle_delete(u, a, r),
-			'delete_me': lambda u, a, r, m: self._handle_delete_me(u, a, r),
-			'rename': lambda u, a, r, m: self._handle_rename(u, a, False),
-			'rename_o': lambda u, a, r, m: self._handle_rename(u, a, True),
-			'mock': lambda u, a, r, m: self._handle_mock(u, a, r),
-			'steal': lambda u, a, r, m: self._handle_steal(u, a, r),
-			'help': lambda u, a, r, m: self._handle_help(a),
-			'blacklist_add': lambda u, a, r, m: self._handle_blacklist_add(u, a, r),
-			'blacklist_remove': lambda u, a, r, m: self._handle_blacklist_remove(u, a, r),
-			'clap': self._handle_text_transform('clap'),
-			'zalgo': self._handle_text_transform('zalgo'),
-			'forbesify': self._handle_text_transform('forbesify'),
-			'copypasta': self._handle_text_transform('copypasta'),
-			'owo': self._handle_text_transform('owo'),
-			'stretch': self._handle_text_transform('stretch'),
-			'roast': lambda u, a, r, m: roast.handle_roast(m, self.get_bot()),
-			'flirt': lambda u, a, r, m: self._handle_flirt(u, a, r, m),
-			'random': lambda u, a, r, m: self._handle_random(u, a),
-			'search': lambda u, a, r, m: self._handle_search(u, a),
 
-			'deepfry': lambda u, a, r, m: self._handle_deepfry(u, a, r),
-			'dream': lambda u, a, r, m: self._handle_dream(u, a, r)
+		self.commands = {
+			'help': lambda message: help.help(message.args),
+			
+			# Copypasta
+			'add': lambda message: add.add(message, self.db, overwrite=False),
+			'add_o': lambda message: add.add(message, self.db, overwrite=True),
+			'saved': self._handle_saved,
+			'delete': lambda message: delete.delete(message, self.db),
+			'delete_me': lambda message: delete_me.delete_me(self.db, message.author.id),
+			'rename': lambda message: rename_key.handle_rename(message, self.db, overwrite=False),
+			'rename_o': lambda message: rename_key.handle_rename(message, self.db, overwrite=True),
+			'steal': lambda message: steal.handle_steal(self.db, message.author, message.args),
+			'random': lambda message: random_key.handle_random(message.author, message.args),
+			'search': lambda message: search.handle_search(self.db, message.author, message.args),
+			
+			# Text transform
+			'clap': lambda message: text_transform.handle_text_transform('clap', message),
+			'zalgo': lambda message: text_transform.handle_text_transform('zalgo', message),
+			'forbesify': lambda message: text_transform.handle_text_transform('forbesify', message),
+			'copypasta': lambda message: text_transform.handle_text_transform('copypasta', message),
+			'owo': lambda message: text_transform.handle_text_transform('owo', message),
+			'uwu': lambda message: text_transform.handle_text_transform('owo', message), # Alias
+			'stretch': lambda message: text_transform.handle_text_transform('stretch', message),
+			
+			# Fun
+			'mock': mock.handle_mock,
+			'roast': lambda message: roast.roast(message.message_obj, self.get_bot()),
+			'roast_add': lambda message: roast.add_roast(message),
+
+			# TODO
+			'deepfry': lambda message: deepfry.handle_deepfry_command(message.reference),
+			# 'dream': lambda message: self._handle_dream(message.author, message.args, message.reference),
+			'dream': lambda message: dream.handle_dream_command(message.reference),
+
+			# Admin
+			'blacklist': lambda message: blacklist.handle_blacklist(message.author.id, message.args),
 		}
 		self.get_bot = get_bot
 
-	def _handle_add(self, user: discord.User, args: list, reply, message, overwrite=False) -> str:
-		if len(args) == 1:
-			return constants.WRONG_ARGS_ADD
-
-		if len(args) == 2:
-			if reply is None and len(message.attachments) == 0:
-				return constants.WRONG_ARGS_ADD
-
-			if reply:
-				original_message = reply.resolved.content.strip() or ''
-				original_message += self._get_attachments_text(reply.resolved)
-			else:
-				original_message = ''
-			original_message += self._get_attachments_text(message)
-
-			if not original_message:
-				return constants.EMPTY_MESSAGE
-
-			return self.db.store_text(user.id, args[1], original_message, overwrite)
-
-		return self.db.store_text(user.id, args[1], ' '.join(args[2:]), overwrite)
-
-	def _get_attachments_text(self, message: discord.Message) -> str:
-		text = ''
-		for i, attachment in enumerate(message.attachments):
-			text += f'[Attachment {i}]({attachment.url}) '
-		for sticker in message.stickers:
-			text += f'[{sticker.name}]({sticker.url}) '
-		return text
-
-	def _handle_saved(self, user: discord.User, args: list, message=None) -> str:
+	def _handle_saved(self, message: 'Message') -> str:
+		args = message.args
 		if len(args) == 2 and args[1].startswith('<@') and args[1].endswith('>'):
-			if not is_admin(user.id):
+			if not is_admin(message.author.id):
 				return "You don't have permission to view another user's keys."
 			find_keys_for = args[1][2:-1]
 			# keys = sorted(self.db.get_user_keys(mentioned_user_id))
 			# return f"Keys for <@{mentioned_user_id}>:\n- " + '\n- '.join(keys) if keys else constants.EMPTY_LIST
 		else:
-			find_keys_for = user.id
+			find_keys_for = message.author.id
 
 		keys = sorted(self.db.get_user_keys(find_keys_for))
 		if len(keys) == 0:
@@ -131,13 +80,19 @@ class CommandHandler:
 		return_text = f'{constants.SAVED_MSGS} <@{str(find_keys_for)}>\n' +\
 							'- ' + '\n- '.join(keys) if keys else constants.EMPTY_LIST
 
-		if isinstance(message.channel, discord.TextChannel) or isinstance(message.channel, discord.VoiceChannel):
-			if message.channel.permissions_for(message.channel.guild.me).add_reactions and \
-						message.channel.permissions_for(message.channel.guild.me).manage_messages:
+		message_obj = message.message_obj
+		if isinstance(message_obj.channel, discord.TextChannel) or isinstance(message_obj.channel, discord.VoiceChannel):
+			if message_obj.channel.permissions_for(message_obj.channel.guild.me).add_reactions and \
+						message_obj.channel.permissions_for(message_obj.channel.guild.me).manage_messages:
 				return_text = f'{constants.SAVED_MSGS} <@{str(find_keys_for)}>\n1/{str(len(keys)//10 + 1)}\n' +\
 								'- ' + '\n- '.join(keys[:10]) if keys else constants.EMPTY_LIST
 
 		return return_text
+
+	# async def _handle_deepfry(self, user: discord.User, args: list, reply) -> Union[str, discord.File]:
+	# 	if reply is None:
+	# 		return "You need to reply to a message with an image to use this command."
+	# 	return await deepfry.handle_deepfry_command(reply)
 
 	def _handle_text_transform(self, command_type: str) -> Callable:
 		handlers = {
@@ -244,33 +199,27 @@ class CommandHandler:
 			return constants.WRONG_ARGS
 		return search.search(self.db.db, user.id, args[1])
 
-	async def handle_command(self, user: discord.User, cmd: str, reply=None, message=None) -> Optional[Union[str, discord.File]]:
-		if cmd.startswith(';;'):
-			cmd = cmd[2:]
+	# async def _handle_dream(self, user: discord.User, args: list, reply) -> Union[str, discord.File, None]:
+	# 	return await dream.handle_dream_command(user, args, message=reply)
 
-		args = cmd.split()
+	async def handle_command(self, message: Message) -> Optional[Union[str, discord.File]]:
+		args = message.args
 		if not args:
 			return None
 
 		command = args[0]
 		if command in self.commands:
+			if command in constants.ADMIN_COMMANDS:
+				if not is_admin(message.author.id):
+					return constants.ADMIN_ONLY
+				return self.commands[command](message)
+
 			if command in ['dream', 'deepfry']:
-				return await self.commands[command](user, args, reply, message)
+				return await self.commands[command](message)
 			else:
-				return self.commands[command](user, args, reply, message)
+				return self.commands[command](message)
 		return None
 
-	def _handle_help(self, args) -> str:
-		if len(args) != 2:
-			return constants.HELP_TEXT
-
-		match args[1].lower():
-			case 'copypasta':
-				return constants.HELP_TEXT_CP
-			case 'memes':
-				return constants.HELP_TEXT_MEMES
-			case _:
-				return constants.HELP_TEXT
 
 class DiscordBot:
 	def __init__(self, token: str):
@@ -311,12 +260,11 @@ class DiscordBot:
 			if message.author == self.client.user or message.author.bot:
 				return
 
-			if is_blacklisted(message.author.id):
-				if message.content.strip().startswith(';;'):
-					await message.reply("You are blacklisted from using this bot.")
-				return
-
-			await self.process_message(message)
+			if not blacklist.is_blacklisted(message.author.id):
+				return constants.BLACKLISTED
+			
+			mess = Message(message)
+			await self.process_message(mess)
 		
 		@self.client.event
 		async def on_reaction_add(reaction, user:discord.User):
@@ -420,14 +368,14 @@ class DiscordBot:
 
 
 
-	async def process_message(self, message: discord.Message):
-		content = message.content.strip()
+	async def process_message(self, message: 'Message'):
+		content = message.content
 		if re.search(constants.REPLACE, content):
 			await self.handle_replacement(message)
 		elif re.match(constants.COMMAND, content):
 			await self.handle_bot_command(message)
 
-	async def handle_replacement(self, message: discord.Message):
+	async def handle_replacement(self, message: 'Message'):
 		def get_text(match:re.Match)->str:
 			key = match.string[match.start()+2:match.end()-2]
 			replacement = self.db_manager.retrieve_text(message.author.id, key)
@@ -437,27 +385,23 @@ class DiscordBot:
 
 		replaced_text = re.sub(constants.REPLACE,
 				get_text,
-				message.content.strip()).strip()
-		if replaced_text != message.content.strip() and replaced_text != '':
-			target = message.reference.resolved if message.reference else message
+				message.content).strip()
+		if replaced_text != message.content and replaced_text != '':
+			target = message.reference.resolved if message.reference else message.message_obj
 			await target.reply(replaced_text)
 
-	async def handle_bot_command(self, message: discord.Message):
-		response = await self.command_handler.handle_command(
-			message.author, 
-			message.content.strip(), 
-			reply=message.reference,
-			message=message
-		)
+	async def handle_bot_command(self, message: 'Message'):
+		response = await self.command_handler.handle_command(message)
 
 		if response:
 			await self.send_response(message, response)
 
-	async def send_response(self, message: discord.Message, response):
-		cmd = message.content.strip()[2:]
+	async def send_response(self, message: 'Message', response):
+		message_obj = message.message_obj
+		cmd = message_obj.content.strip()[2:]
 		reply_to = message.reference.resolved if message.reference and cmd.split()[0] in {
 			'mock', 'deepfry', 'clap', 'zalgo', 'forbesify', 'copypasta', 'owo', 'stretch', 'random'
-		} else message
+		} else message.message_obj
 
 		if isinstance(response, discord.File):
 			await reply_to.reply(file=response)
@@ -471,9 +415,10 @@ class DiscordBot:
 				resp = await reply_to.reply(response)
 				if cmd == 'saved':
 					if response.strip().startswith(constants.SAVED_MSGS):
-						if isinstance(message.channel, discord.TextChannel) or isinstance(message.channel, discord.VoiceChannel):
-							if message.channel.permissions_for(message.channel.guild.me).add_reactions and \
-								message.channel.permissions_for(message.channel.guild.me).manage_messages:
+						message_obj = message.message_obj
+						if isinstance(message_obj.channel, discord.TextChannel) or isinstance(message_obj.channel, discord.VoiceChannel):
+							if message_obj.channel.permissions_for(message_obj.channel.guild.me).add_reactions and \
+								message_obj.channel.permissions_for(message_obj.channel.guild.me).manage_messages:
 								await resp.add_reaction('⏮️')
 								await resp.add_reaction('◀️')
 								await resp.add_reaction('▶️')

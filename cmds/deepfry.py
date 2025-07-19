@@ -7,6 +7,7 @@ import numpy as np
 import deeppyer
 import os
 from typing import Optional, Union
+import constants
 
 # Get the absolute path to the cascade files
 CASCADE_PATH = os.path.dirname(cv2.__file__) + "/data/haarcascade_frontalface_default.xml"
@@ -147,7 +148,7 @@ async def handle_deepfry_command(reply) -> Union[File, str]:
         Union[File, str]: The deep-fried image as a Discord file or error message
     """
     if not reply.resolved:
-        return "Cannot deep fry - no message found."
+        return constants.REPLY_TO_MESSAGE
 
     # Check referenced message for attachments or embeds
     attachments = reply.resolved.attachments

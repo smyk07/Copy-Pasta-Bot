@@ -1,18 +1,39 @@
 DB_NAME             = './db/mysqlite.db'
+ROASTS_NAME         = 'roasts.txt'
+
+KEY_EXISTS          = 'Key already exists in database.'
 KEY_EXISTS_ADD      = 'Could not add because this key already exists. Use `add_o` to overwrite.'
 KEY_EXISTS_RENAME   = 'Could not rename because this key already exists. Use `rename_o` to overwrite.'
 KEY_EXISTS_STEAL    = 'Could not steal because this key already exists. Provide new key name as well.'
 KEY_NOT_FOUND       = 'Key you specified does not exist.'
+
 SUCCESSFUL          = 'Success!'
 UNSUCCESSFUL        = 'Something went wrong :/'
+
+REPLY_TO_MESSAGE    = 'You need to reply to a message to use this command.'
+
 WRONG_ARGS          = 'You are using the command wrong. Please check `;;help`'
 WRONG_ARGS_ADD      = '`add <key> <value>` or `add <key>` and reply to a message or add <key> and add an attachment'
+WRONG_ARGS_RENAME   = '`rename <old_key> <new_key>` or `rename_o <old_key> <new_key>`'
 WRONG_ARGS_DEL      = '`delete <key>`'
 WRONG_ARGS_STEAL    = 'Sorry, we do not encourage human trafficking. Please mention a key to steal.'
+
 WRONG_USER_ID       = 'The user you tagged is either in the wrong position or wrongly formatted.'
+
 EMPTY_LIST          = 'You have not saved any text yet.'
 EMPTY_LIST_STEAL    = 'The user has not saved any text yet.'
 EMPTY_MESSAGE       = 'The message you replied to seems to be empty.'
+
+BLACKLISTED         = 'You have been blacklisted from using the bot.'
+NOT_BLACKLISTED     = 'User is not blacklisted.'
+BLACKLIST_NO_FOUL   = 'You cannot blacklist another admin.'
+BLACKLISTED_AlREADY = 'User is already blacklisted.'
+BLACKLIST_EMPTY     = 'No users have been blacklisted :)'
+BLACKLIST_SUCCESS   = 'Successfully blacklisted '
+UNBLACKLIST_SUCCESS = 'Successfully unblacklisted '
+ADMIN_ONLY          = 'This is an admin only command.'
+
+
 HELP_TEXT           = '''
 **Basic Usage**:
 `;;cmd` - to interact with the bot (modify keys, meme commands)
@@ -59,7 +80,5 @@ COMMAND 		= r'^;;.' # commands preceded by ;;
 # REPLACE 		= r'(^|\S+\s+);;\S+;;(\s+\S+|$)' # ;;word;;
 REPLACE			= r';;\S+;;'
 
-# List of Blacklisted users
-BLACKLIST = []
-
 COMMAND_COOLDOWN = 2  # Cooldown of 2 seconds
+ADMIN_COMMANDS = ['blacklist', 'roast_add']
