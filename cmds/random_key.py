@@ -13,7 +13,10 @@ def _random_key(db: DatabaseManager, user: str, search_term:Optional[str]=None) 
 	user_keys = db.get_user_keys(user)
 
 	if search_term is not None:
-		user_keys = {key for key in user_keys if search_term in key}
+		user_keys = [key for key in user_keys if search_term in key]
+
+	if not user_keys:
+		return "No keys found for user"
 
 	# return user_db[random.choice(list(user_db.keys()))]
 	return db.retrieve_text(user, random.choice(user_keys))
@@ -23,4 +26,4 @@ def handle_random(user: discord.User, args:list, db:DatabaseManager) -> str:
 		return constants.WRONG_ARGS
 
 	search_term = args[1] if len(args) == 2 else None
-	return _random_key(db, user.id, search_term)
+	return _random_key(db, str(user.id), search_term)
