@@ -1,10 +1,10 @@
 import random
+from typing import Optional
 import discord
-from sqlitedict import SqliteDict
 import constants
 from DatabaseManager import DatabaseManager
 
-def _random_key(db: DatabaseManager, user: str, search_term=None) -> str:
+def _random_key(db: DatabaseManager, user: str, search_term:Optional[str]=None) -> str:
 	# user_db = db.get(user, None)
 
 	# if user_db is None:
