@@ -16,7 +16,7 @@ def _random_key(db: DatabaseManager, user: str, search_term:Optional[str]=None) 
 		user_keys = [key for key in user_keys if search_term in key]
 
 	if not user_keys:
-		return "No keys found for user"
+		return constants.EMPTY_LIST
 
 	# return user_db[random.choice(list(user_db.keys()))]
 	return db.retrieve_text(user, random.choice(user_keys))
