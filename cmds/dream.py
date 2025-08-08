@@ -237,7 +237,7 @@ async def handle_dream_command(user, args, message=None):
 				duration="5s"
 			)
 		else:
-			generation = client.generations.image.create(prompt=prompt)
+			generation = client.generations.image.create(prompt=prompt, model='photon-1')
 		
 		# Poll until completion
 		completed = False
