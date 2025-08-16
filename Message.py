@@ -7,7 +7,6 @@ class Message:
 	def __init__(self, message_obj:discord.Message):
 		self.message_obj = message_obj
 		self.reference = getattr(message_obj, 'reference', None)
-		# self.reference = self.reference or self.reference.resolved
 		self.reference = self.reference.resolved if self.reference else self.reference
 		self.to_reference = getattr(message_obj, 'to_reference', None)
 		self.author = message_obj.author
@@ -37,10 +36,9 @@ class Message:
 			return message_obj.content.strip()
 		if len(message_obj.attachments) == 0:
 			if message_obj.reference: # Forwarded message
-				# return message_obj.reference.resolved.content.strip()
 				content = []
-				if message_obj.reference.resolved:
-					content += message_obj.reference.resolved.content.strip()
+				if message_obj.reference:
+					content += message_obj.reference.content.strip()
 				if message_obj.reference.cached_message:
 					content += message_obj.reference.cached_message.content.strip()
 				return '\n'.join(content)
@@ -72,7 +70,7 @@ class Message:
 		# Checks for forwarded messages
 		if check_reference and message_obj.reference:
 			try:
-				attachments += self.get_attachments(message_obj.reference.resolved, attachment_type, check_reference=False)
+				attachments += self.get_attachments(message_obj.reference, attachment_type, check_reference=False)
 				attachments += self.get_attachments(message_obj.reference.cached_message, attachment_type, check_reference=False)
 			except:
 				pass

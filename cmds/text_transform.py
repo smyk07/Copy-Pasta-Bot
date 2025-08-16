@@ -167,7 +167,7 @@ def handle_text_transform(command_type:str, message:Message) -> str:
 	if not message.reference:
 		return constants.REPLY_TO_MESSAGE
 
-	reply = Message(message.reference.resolved)
+	reply = Message(message.reference)
 	if not reply:
 		return constants.REPLY_TO_MESSAGE
 
