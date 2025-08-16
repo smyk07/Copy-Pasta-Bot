@@ -4,7 +4,7 @@ from Message import Message
 
 def add(message: Message, db: DatabaseManager, overwrite:bool=False) -> str:
 	args = message.args
-	reply = Message(message.reference.resolved) if message.reference else None
+	reply = Message(message.reference) if message.reference else None
 	if len(args) == 1:
 		return constants.WRONG_ARGS_ADD
 
