@@ -76,7 +76,7 @@ HELP_TEXT_MEMES    = '''
 SAVED_MSGS = 'Saved messages for:'
 
 # REGEX
-COMMAND 		= r'^;;.' # commands preceded by ;;
+COMMAND			= r'^[;;].+(?<!;;)$' # Will allow things like `;;key_endswith_;`
 # REPLACE 		= r'(^|\S+\s+);;\S+;;(\s+\S+|$)' # ;;word;;
 REPLACE			= r';;\S+;;'
 

@@ -1,10 +1,15 @@
 import discord
+import constants
+import re
+import shlex
 
 class Message:
 	def __init__(self, message_obj:discord.Message):
 		self.message_obj = message_obj
-		self.reference = message_obj.reference if hasattr(message_obj, 'reference') else None
-		self.to_reference = message_obj.to_reference if hasattr(message_obj, 'to_reference') else None
+		self.reference = getattr(message_obj, 'reference', None)
+		# self.reference = self.reference or self.reference.resolved
+		self.reference = self.reference.resolved if self.reference else self.reference
+		self.to_reference = getattr(message_obj, 'to_reference', None)
 		self.author = message_obj.author
 
 		self.content = self.get_content(message_obj) # populate self.content
@@ -12,16 +17,20 @@ class Message:
 		self.videos = set(self.get_attachments(message_obj, attachment_type='video', check_reference=True))
 		self.audios = set(self.get_attachments(message_obj, attachment_type='audio', check_reference=True))
 
+		# Incase image is the only embed, content should be considered empty
 		if len(self.images) == 1 and list(self.images)[0] == self.content:
 			self.content = ''
 
-		if self.content and self.content[:2] == ';;':
-			self.is_cmd = True
-			self.args = self.content[2:].split(' ')
-		else:
-			self.is_cmd = False
-			self.args = None
-		pass
+		self.is_cmd = False
+		self.replace = False
+		self.args = None
+
+		if self.content:
+			if re.match(constants.COMMAND, self.content):
+				self.is_cmd = True
+				self.args = shlex.split(self.content[2:])
+			elif re.match(constants.REPLACE, self.content):
+				self.replace = True
 
 	def get_content(self, message_obj:discord.Message):
 		if message_obj.content != '': # Normal message
@@ -63,8 +72,8 @@ class Message:
 		# Checks for forwarded messages
 		if check_reference and message_obj.reference:
 			try:
-				attachments += self.get_attachments(message_obj.reference.resolved, attachment_type=attachment_type, check_reference=False)
-				attachments += self.get_attachments(message_obj.reference.cached_message, attachment_type=attachment_type, check_reference=False)
+				attachments += self.get_attachments(message_obj.reference.resolved, attachment_type, check_reference=False)
+				attachments += self.get_attachments(message_obj.reference.cached_message, attachment_type, check_reference=False)
 			except:
 				pass
 

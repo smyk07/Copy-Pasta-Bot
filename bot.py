@@ -91,7 +91,7 @@ class DiscordBot:
 				return
 
 			author = numbers[0]
-			if author != str(user.id):
+			if author != str(user.id) and author not in do_not_push.ADMINS:
 				await reaction.remove(user)
 				return
 			try:
@@ -146,24 +146,17 @@ class DiscordBot:
 					return
 
 			try:
-				# await message.clear_reactions()
-				# await message.add_reaction('⏮️')
-				# await message.add_reaction('◀️')
-				# await message.add_reaction('▶️')
-				# await message.add_reaction('⏭️')
 				await reaction.remove(user)
 			except discord.HTTPException:
 				print('Error removing reactions', file=sys.stderr)
 			except Exception as e:
 				print(e, file=sys.stderr)
 
-
 	async def process_message(self, message: Message):
-		content = message.content
-		if re.search(constants.REPLACE, content):
-			await self.handle_replacement(message)
-		elif re.match(constants.COMMAND, content):
+		if message.is_cmd:
 			await self.handle_bot_command(message)
+		elif message.replace:
+			await self.handle_replacement(message)
 
 	async def handle_replacement(self, message: Message):
 		def get_text(match:re.Match)->str:
@@ -176,8 +169,9 @@ class DiscordBot:
 		replaced_text = re.sub(constants.REPLACE,
 				get_text,
 				message.content).strip()
-		if replaced_text != message.content and replaced_text != '':
-			target = message.reference.resolved if message.reference else message.message_obj
+		
+		if replaced_text != '' and replaced_text != message.content:
+			target = message.reference or message.message_obj
 			await target.reply(replaced_text)
 
 	async def handle_bot_command(self, message: Message):
@@ -187,34 +181,41 @@ class DiscordBot:
 			await self.send_response(message, response)
 
 	async def send_response(self, message: Message, response):
-		message_obj = message.message_obj
-		cmd = message_obj.content.strip()[2:]
-		reply_to = message.reference.resolved if message.reference and cmd.split()[0] in {
+		reply_to = message.reference if message.reference and message.args[0] in {
 			'mock', 'deepfry', 'clap', 'zalgo', 'forbesify', 'copypasta', 'owo', 'stretch', 'random'
 		} else message.message_obj
 
 		if isinstance(response, discord.File):
 			await reply_to.reply(file=response)
 			if hasattr(response.fp, 'name'):
-				os.remove(response.fp.name)
+				os.remove(response.fp.name) #Clean up
+		
 		elif isinstance(response, str):
 			if len(response) > 2000:
 				# Always reply to the command message for error responses
 				await message.reply("## Fuck me! Keep it under the 2k character limit of Discord.")
 			else:
 				resp = await reply_to.reply(response)
-				if cmd == 'saved':
-					if response.strip().startswith(constants.SAVED_MSGS):
-						message_obj = message.message_obj
-						if isinstance(message_obj.channel, discord.TextChannel) or isinstance(message_obj.channel, discord.VoiceChannel):
-							if message_obj.channel.permissions_for(message_obj.channel.guild.me).add_reactions and \
-								message_obj.channel.permissions_for(message_obj.channel.guild.me).manage_messages:
-								await resp.add_reaction('⏮️')
-								await resp.add_reaction('◀️')
-								await resp.add_reaction('▶️')
-								await resp.add_reaction('⏭️')
+				if message.args[0] == 'saved' and response.strip().startswith(constants.SAVED_MSGS):
+					await self._add_pagination_controls(resp, message)
 		else:
 			print("Unhandled response type:", type(response))
+
+	async def _add_pagination_controls(self, response_object, message:Message):
+		message_obj = message.message_obj
+
+		if not isinstance(message_obj.channel, discord.TextChannel) and \
+			not isinstance(message_obj.channel, discord.VoiceChannel):
+			# Channel needs to be either of the 2 to be able to add reactions
+			return 
+
+		# Add reactions and manage messages permission
+		if message_obj.channel.permissions_for(message_obj.channel.guild.me).add_reactions and \
+			message_obj.channel.permissions_for(message_obj.channel.guild.me).manage_messages:
+			await response_object.add_reaction('⏮️')
+			await response_object.add_reaction('◀️')
+			await response_object.add_reaction('▶️')
+			await response_object.add_reaction('⏭️')
 
 	def run(self):
 		try:
