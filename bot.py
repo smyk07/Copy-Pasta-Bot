@@ -66,8 +66,7 @@ class DiscordBot:
 
 			message = reaction.message
 
-			if not message.channel.permissions_for(message.channel.guild.me).manage_messages or \
-				not message.channel.permissions_for(message.channel.guild.me).add_reactions:
+			if not self._check_perms_for_pagination_controls(message.channel):
 				return
 
 			if message.author != self.client.user:
@@ -85,7 +84,7 @@ class DiscordBot:
 			# <content>
 
 			message_lines = message.content.strip().split('\n')
-			numbers = re.findall(r'\d+', message_lines[0]) # Should only contain 1 element
+			numbers = re.findall(r'\d+', message_lines[0]) # Should only contain 1 element (userid)
 			if len(numbers) != 1:
 				print('Error updating saved message: Can\'t find author id in: ', message_lines[0], file=sys.stderr)
 				return
@@ -169,7 +168,7 @@ class DiscordBot:
 		replaced_text = re.sub(constants.REPLACE,
 				get_text,
 				message.content).strip()
-		
+
 		if replaced_text != '' and replaced_text != message.content:
 			target = message.reference or message.message_obj
 			await target.reply(replaced_text)
@@ -189,7 +188,7 @@ class DiscordBot:
 			await reply_to.reply(file=response)
 			if hasattr(response.fp, 'name'):
 				os.remove(response.fp.name) #Clean up
-		
+
 		elif isinstance(response, str):
 			if len(response) > 2000:
 				# Always reply to the command message for error responses
@@ -204,18 +203,29 @@ class DiscordBot:
 	async def _add_pagination_controls(self, response_object, message:Message):
 		message_obj = message.message_obj
 
-		if not isinstance(message_obj.channel, discord.TextChannel) and \
-			not isinstance(message_obj.channel, discord.VoiceChannel):
-			# Channel needs to be either of the 2 to be able to add reactions
-			return 
+		if not self._check_perms_for_pagination_controls(message_obj.channel):
+			return
 
-		# Add reactions and manage messages permission
-		if message_obj.channel.permissions_for(message_obj.channel.guild.me).add_reactions and \
-			message_obj.channel.permissions_for(message_obj.channel.guild.me).manage_messages:
-			await response_object.add_reaction('⏮️')
-			await response_object.add_reaction('◀️')
-			await response_object.add_reaction('▶️')
-			await response_object.add_reaction('⏭️')
+		await response_object.add_reaction('⏮️')
+		await response_object.add_reaction('◀️')
+		await response_object.add_reaction('▶️')
+		await response_object.add_reaction('⏭️')
+
+	def _check_perms_for_pagination_controls(self, channel) -> bool:
+		if not isinstance(channel, discord.TextChannel):
+			return False
+
+		if not isinstance(channel, discord.VoiceChannel):
+			return False
+
+		if not channel.permissions_for(channel.guild.me).add_reactions:
+			return False
+
+		# Manage messages is needed for removing unnecessary reactions
+		if not channel.permissions_for(channel.guild.me).manage_messages:
+			return False
+
+		return True
 
 	def run(self):
 		try:
