@@ -90,7 +90,7 @@ class DiscordBot:
 				return
 
 			author = numbers[0]
-			if author != str(user.id) and author not in do_not_push.ADMINS:
+			if author != str(user.id) and user.id not in do_not_push.ADMINS:
 				await reaction.remove(user)
 				return
 			try:
