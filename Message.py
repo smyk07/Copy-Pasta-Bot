@@ -16,6 +16,8 @@ class Message:
 		self.videos = set(self.get_attachments(message_obj, attachment_type='video', check_reference=True))
 		self.audios = set(self.get_attachments(message_obj, attachment_type='audio', check_reference=True))
 
+		self.mentions = getattr(message_obj, 'mentions', None)
+
 		# Incase image is the only embed, content should be considered empty
 		if len(self.images) == 1 and list(self.images)[0] == self.content:
 			self.content = ''

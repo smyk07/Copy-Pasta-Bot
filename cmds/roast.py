@@ -27,7 +27,7 @@ def _get_random_roast(num=1) -> str:
 	roasts = _load_roasts()
 	return random.sample(roasts, num)
 
-def roast(message: discord.Message, bot_user: discord.ClientUser) -> str:
+def roast(message: Message, bot_user: discord.ClientUser) -> str:
 	"""Handle the ;;roast command and return the response message"""
 	no_mentions = False
 	bot_mention = False
