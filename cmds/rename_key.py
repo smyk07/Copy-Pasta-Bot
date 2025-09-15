@@ -1,6 +1,6 @@
-import constants
-from DatabaseManager import DatabaseManager
-from Message import Message
+import utils.Constants as constants
+from utils.DatabaseManager import DatabaseManager
+from utils.Message import Message
 
 def _rename_key(db:DatabaseManager, user:str, key:str, new_key:str, overwrite:bool) -> str:
 	user_keys = db.get_user_keys(user)

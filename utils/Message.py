@@ -1,5 +1,5 @@
 import discord
-import constants
+import utils.Constants as constants
 import re
 import shlex
 

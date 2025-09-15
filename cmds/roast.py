@@ -1,8 +1,9 @@
 import os
 import random
 import discord
-import constants
-from Message import Message
+
+import utils.Constants as constants
+from utils.Message import Message
 
 def _get_asset_path(filename: str) -> str:
 	root_dir = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))

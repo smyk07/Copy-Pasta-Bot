@@ -4,8 +4,8 @@ import re
 import discord
 from PIL import Image, ImageDraw, ImageFont
 
-import constants
-from Message import Message
+import utils.Constants as constants
+from utils.Message import Message
 
 
 def _get_asset_path(filename: str) -> str:
