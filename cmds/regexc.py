@@ -33,12 +33,11 @@ Usage: `;;s <pattern> <replacement> [flags g, i]`
     flags = 0
     count = 1
 
-    for flag in flags_str:
-        match flag:
-            case "g":
-                count = 0
-            case "i":
-                flags |= re.IGNORECASE
+    flags_set = set(flags_str)
+    if "g" in flags_set:
+        count = 0
+    if "i" in flags_set:
+        flags |= re.IGNORECASE
 
     string = reply.resolved.content
 
