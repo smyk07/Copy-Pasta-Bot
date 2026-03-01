@@ -6,13 +6,13 @@ def handle_regex(args: list, reply):
     if reply is None:
         return """
 Please reply to a message to use this command.
-Usage: `;;s <pattern> <replacement> [flags]`
+Usage: `;;s <pattern> <replacement> [flags g, i]`
         """
 
     if not reply.resolved.content:
         return """
 Cannot regex an empty message or a message with only attachments.
-Usage: `;;s <pattern> <replacement> [flags]`
+Usage: `;;s <pattern> <replacement> [flags g, i]`
         """
 
     if len(args) < 3:
