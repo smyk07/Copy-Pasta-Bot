@@ -72,6 +72,7 @@ class CommandHandler:
 			'zalgo': self._handle_text_transform('zalgo'),
 			'forbesify': self._handle_text_transform('forbesify'),
 			'copypasta': self._handle_text_transform('copypasta'),
+            's': lambda u, a, r, m: regexc.handle_regex(a, r),
 			'owo': self._handle_text_transform('owo'),
 			'stretch': self._handle_text_transform('stretch'),
 			'roast': lambda u, a, r, m: roast.handle_roast(m, self.get_bot()),
