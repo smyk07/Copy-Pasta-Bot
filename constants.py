@@ -13,6 +13,10 @@ WRONG_USER_ID       = 'The user you tagged is either in the wrong position or wr
 EMPTY_LIST          = 'You have not saved any text yet.'
 EMPTY_LIST_STEAL    = 'The user has not saved any text yet.'
 EMPTY_MESSAGE       = 'The message you replied to seems to be empty.'
+REGEX_USAGE         = 'Usage: `;;s <pattern> <replacement> [flags g, i]`'
+REGEX_NO_REPLY      = 'Please reply to a message to use this command.\n' + REGEX_USAGE
+REGEX_EMPTY_MSG     = 'Cannot regex an empty message or a message with only attachments.\n' + REGEX_USAGE
+REGEX_NOT_FOUND     = 'No matching pattern found.'
 HELP_TEXT           = '''
 **Basic Usage**:
 `;;cmd` - to interact with the bot (modify keys, meme commands)

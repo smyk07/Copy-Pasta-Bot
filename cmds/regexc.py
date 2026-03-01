@@ -1,22 +1,18 @@
+import constants
+
 import re
 import shlex
 
 
 def handle_regex(args: list, reply):
     if reply is None:
-        return """
-Please reply to a message to use this command.
-Usage: `;;s <pattern> <replacement> [flags g, i]`
-        """
+        return constants.REGEX_NO_REPLY
 
     if not reply.resolved.content:
-        return """
-Cannot regex an empty message or a message with only attachments.
-Usage: `;;s <pattern> <replacement> [flags g, i]`
-        """
+        return constants.REGEX_EMPTY_MSG
 
     if len(args) < 3:
-        return "Usage: `;;s <pattern> <replacement> [flags]`"
+        return constants.REGEX_USAGE
 
     try:
         raw = " ".join(args[1:])
@@ -25,7 +21,7 @@ Usage: `;;s <pattern> <replacement> [flags g, i]`
         return f"Parsing error: `{e}`"
 
     if len(parts) < 2:
-        return "Usage: `;;s <pattern> <replacement> [flags]`"
+        return constants.REGEX_USAGE
 
     pattern, replacement, *rest = parts
     flags_str = rest[0] if rest else ""
@@ -51,6 +47,6 @@ Usage: `;;s <pattern> <replacement> [flags g, i]`
         return f"Invalid regex pattern: `{e}`"
 
     if result == string:
-        return "No matching pattern found."
+        return constants.REGEX_NOT_FOUND
 
     return result
