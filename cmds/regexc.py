@@ -34,8 +34,12 @@ Usage: `;;s <pattern> <replacement> [flags g, i]`
     count = 1
 
     flags_set = set(flags_str)
+    digits = re.search(r"\d+", flags_str)
+
     if "g" in flags_set:
         count = 0
+    if digits:
+        count = int(digits.group())
     if "i" in flags_set:
         flags |= re.IGNORECASE
 
