@@ -4,6 +4,16 @@ import re
 import shlex
 
 
+def replace_curly_quotes(s: str) -> str:
+    QUOTE_MAP = {
+        "\u201c": '"',
+        "\u201d": '"',
+        "\u2018": "'",
+        "\u2019": "'",
+    }
+    return s.translate(str.maketrans(QUOTE_MAP))
+
+
 def handle_regex(args: list, reply):
     if reply is None:
         return constants.REGEX_NO_REPLY
@@ -15,7 +25,7 @@ def handle_regex(args: list, reply):
         return constants.REGEX_USAGE
 
     try:
-        raw = " ".join(args[1:])
+        raw = replace_curly_quotes(" ".join(args[1:]))
         parts = shlex.split(raw)
     except ValueError as e:
         return f"Parsing error: `{e}`"
