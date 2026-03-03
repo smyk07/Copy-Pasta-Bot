@@ -72,6 +72,7 @@ class CommandHandler:
 			'zalgo': self._handle_text_transform('zalgo'),
 			'forbesify': self._handle_text_transform('forbesify'),
 			'copypasta': self._handle_text_transform('copypasta'),
+            's': lambda u, a, r, m: regexc.handle_regex(a, r),
 			'owo': self._handle_text_transform('owo'),
 			'stretch': self._handle_text_transform('stretch'),
 			'roast': lambda u, a, r, m: roast.handle_roast(m, self.get_bot()),
@@ -456,7 +457,7 @@ class DiscordBot:
 	async def send_response(self, message: discord.Message, response):
 		cmd = message.content.strip()[2:]
 		reply_to = message.reference.resolved if message.reference and cmd.split()[0] in {
-			'mock', 'deepfry', 'clap', 'zalgo', 'forbesify', 'copypasta', 'owo', 'stretch', 'random'
+			'mock', 'deepfry', 'clap', 'zalgo', 'forbesify', 'copypasta', 'owo', 'stretch', 'random', 's'
 		} else message
 
 		if isinstance(response, discord.File):
